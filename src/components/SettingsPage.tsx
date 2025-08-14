@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   Box,
   Container,
@@ -12,6 +12,8 @@ import {
   Divider,
   Alert,
   Paper,
+  InputAdornment,
+  Chip,
   List,
   ListItem,
   ListItemText,
@@ -27,30 +29,45 @@ import {
   Wifi,
   Thermostat,
   Settings,
+  Schedule,
+  AccessTime,
+  DeviceThermostat,
 } from "@mui/icons-material";
+import { database } from "../firebase";
+import { ref, set, onValue } from "firebase/database";
+import MQTTManager from "../services/MQTTManager";
+import { mqttConfig } from "../config/mqtt";
+import type { ScheduleSettings } from "../types";
 
 interface SettingsPageProps {
   onLogout?: () => void;
 }
 
 const SettingsPage: React.FC<SettingsPageProps> = ({ onLogout }) => {
+  // Schedule Settings State
+  const [scheduleSettings, setScheduleSettings] = useState<ScheduleSettings>({
+    amEnabled: false,
+    amHours: 6,
+    amMinutes: 0,
+    amTemperature: 22,
+    pmEnabled: false,
+    pmHours: 18,
+    pmMinutes: 0,
+    pmTemperature: 20,
+    defaultTemperature: 21,
+  });
+
+  // System Settings State
   const [settings, setSettings] = useState({
-    // Temperature Settings
     temperatureUnit: "C",
     autoRefreshInterval: 5,
     alertThreshold: 40,
     enableAlerts: true,
-
-    // System Settings
     deviceName: "ESP32 Temperature Controller",
     enableLogging: true,
     logRetentionDays: 30,
-
-    // Network Settings
     mqttReconnectDelay: 5,
     firebaseTimeout: 10,
-
-    // UI Settings
     darkMode: false,
     compactView: false,
     showAdvanced: false,
@@ -59,12 +76,92 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onLogout }) => {
   const [saveStatus, setSaveStatus] = useState<
     "idle" | "saving" | "success" | "error"
   >("idle");
+  const [mqttManager] = useState(() => new MQTTManager(mqttConfig));
+  const [lastPublishedData, setLastPublishedData] = useState<string>("");
+
+  // Load existing schedule settings from Firebase
+  useEffect(() => {
+    const scheduleRef = ref(database, "schedule");
+    const unsubscribe = onValue(scheduleRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        console.log("Loaded schedule settings from Firebase:", data);
+        setScheduleSettings(data);
+      }
+    });
+
+    // Load local settings
+    const localSettings = localStorage.getItem("esp32-dashboard-settings");
+    if (localSettings) {
+      setSettings(JSON.parse(localSettings));
+    }
+
+    return () => unsubscribe();
+  }, []);
+
+  const handleScheduleChange = (field: keyof ScheduleSettings, value: any) => {
+    setScheduleSettings((prev) => ({
+      ...prev,
+      [field]: value,
+    }));
+  };
 
   const handleSettingChange = (key: string, value: any) => {
     setSettings((prev) => ({
       ...prev,
       [key]: value,
     }));
+  };
+
+  const publishScheduleToMQTT = async (schedule: ScheduleSettings) => {
+    try {
+      if (!mqttManager.getConnectionStatus()) {
+        await new Promise<void>((resolve, reject) => {
+          mqttManager.connect({
+            onConnectionStatus: (connected) => {
+              if (connected) resolve();
+              else reject(new Error("Failed to connect to MQTT"));
+            },
+            onError: reject,
+          });
+        });
+      }
+
+      const success = mqttManager.publishSchedule(schedule);
+      
+      if (success) {
+        console.log("Schedule settings published to MQTT successfully");
+        setLastPublishedData(JSON.stringify(schedule, null, 2));
+        return true;
+      } else {
+        throw new Error("Failed to publish schedule to MQTT");
+      }
+    } catch (error) {
+      console.error("Failed to publish schedule to MQTT:", error);
+      return false;
+    }
+  };
+
+  const saveScheduleSettings = async () => {
+    setSaveStatus("saving");
+
+    try {
+      await set(ref(database, "schedule"), scheduleSettings);
+      console.log("Schedule settings saved to Firebase");
+
+      const mqttSuccess = await publishScheduleToMQTT(scheduleSettings);
+      
+      if (mqttSuccess) {
+        setSaveStatus("success");
+        setTimeout(() => setSaveStatus("idle"), 3000);
+      } else {
+        throw new Error("Failed to publish to MQTT");
+      }
+    } catch (error) {
+      console.error("Failed to save schedule settings:", error);
+      setSaveStatus("error");
+      setTimeout(() => setSaveStatus("idle"), 3000);
+    }
   };
 
   const handleSaveSettings = async () => {
@@ -120,6 +217,10 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onLogout }) => {
     }
   };
 
+  const formatTime = (hours: number, minutes: number) => {
+    return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+  };
+
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
       <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 3 }}>
@@ -140,6 +241,247 @@ const SettingsPage: React.FC<SettingsPageProps> = ({ onLogout }) => {
       )}
 
       <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        {/* Temperature Schedule Settings */}
+        <Card>
+          <CardContent>
+            <Typography variant="h6" gutterBottom>
+              <Schedule sx={{ mr: 1, verticalAlign: "middle" }} />
+              Temperature Schedule
+            </Typography>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
+              Set automatic temperature changes for morning and evening times
+            </Typography>
+
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
+              {/* AM Schedule */}
+              <Box>
+                <Paper sx={{ p: 3, border: scheduleSettings.amEnabled ? "2px solid #1976d2" : "1px solid #e0e0e0" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                    <AccessTime sx={{ mr: 1, color: "#1976d2" }} />
+                    <Typography variant="h6">Morning Schedule</Typography>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={scheduleSettings.amEnabled}
+                          onChange={(e) =>
+                            handleScheduleChange("amEnabled", e.target.checked)
+                          }
+                          color="primary"
+                        />
+                      }
+                      label="Enable"
+                      sx={{ ml: "auto" }}
+                    />
+                  </Box>
+
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2, opacity: scheduleSettings.amEnabled ? 1 : 0.5 }}>
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      <TextField
+                        label="Hours"
+                        type="number"
+                        value={scheduleSettings.amHours}
+                        onChange={(e) =>
+                          handleScheduleChange("amHours", parseInt(e.target.value) || 0)
+                        }
+                        inputProps={{ min: 0, max: 23 }}
+                        disabled={!scheduleSettings.amEnabled}
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        label="Minutes"
+                        type="number"
+                        value={scheduleSettings.amMinutes}
+                        onChange={(e) =>
+                          handleScheduleChange("amMinutes", parseInt(e.target.value) || 0)
+                        }
+                        inputProps={{ min: 0, max: 59 }}
+                        disabled={!scheduleSettings.amEnabled}
+                        sx={{ flex: 1 }}
+                      />
+                    </Box>
+
+                    <TextField
+                      label="Target Temperature"
+                      type="number"
+                      value={scheduleSettings.amTemperature}
+                      onChange={(e) =>
+                        handleScheduleChange("amTemperature", parseFloat(e.target.value) || 0)
+                      }
+                      inputProps={{ min: 5, max: 50, step: 0.5 }}
+                      InputProps={{
+                        endAdornment: <InputAdornment position="end">°C</InputAdornment>,
+                      }}
+                      disabled={!scheduleSettings.amEnabled}
+                      fullWidth
+                    />
+
+                    {scheduleSettings.amEnabled && (
+                      <Chip
+                        icon={<DeviceThermostat />}
+                        label={`${formatTime(scheduleSettings.amHours, scheduleSettings.amMinutes)} → ${scheduleSettings.amTemperature}°C`}
+                        color="primary"
+                        variant="outlined"
+                      />
+                    )}
+                  </Box>
+                </Paper>
+              </Box>
+
+              {/* PM Schedule */}
+              <Box>
+                <Paper sx={{ p: 3, border: scheduleSettings.pmEnabled ? "2px solid #ed6c02" : "1px solid #e0e0e0" }}>
+                  <Box sx={{ display: "flex", alignItems: "center", mb: 2 }}>
+                    <AccessTime sx={{ mr: 1, color: "#ed6c02" }} />
+                    <Typography variant="h6">Evening Schedule</Typography>
+                    <FormControlLabel
+                      control={
+                        <Switch
+                          checked={scheduleSettings.pmEnabled}
+                          onChange={(e) =>
+                            handleScheduleChange("pmEnabled", e.target.checked)
+                          }
+                          color="warning"
+                        />
+                      }
+                      label="Enable"
+                      sx={{ ml: "auto" }}
+                    />
+                  </Box>
+
+                  <Box sx={{ display: "flex", flexDirection: "column", gap: 2, opacity: scheduleSettings.pmEnabled ? 1 : 0.5 }}>
+                    <Box sx={{ display: "flex", gap: 1 }}>
+                      <TextField
+                        label="Hours"
+                        type="number"
+                        value={scheduleSettings.pmHours}
+                        onChange={(e) =>
+                          handleScheduleChange("pmHours", parseInt(e.target.value) || 0)
+                        }
+                        inputProps={{ min: 0, max: 23 }}
+                        disabled={!scheduleSettings.pmEnabled}
+                        sx={{ flex: 1 }}
+                      />
+                      <TextField
+                        label="Minutes"
+                        type="number"
+                        value={scheduleSettings.pmMinutes}
+                        onChange={(e) =>
+                          handleScheduleChange("pmMinutes", parseInt(e.target.value) || 0)
+                        }
+                        inputProps={{ min: 0, max: 59 }}
+                        disabled={!scheduleSettings.pmEnabled}
+                        sx={{ flex: 1 }}
+                      />
+                    </Box>
+
+                    <TextField
+                      label="Target Temperature"
+                      type="number"
+                      value={scheduleSettings.pmTemperature}
+                      onChange={(e) =>
+                        handleScheduleChange("pmTemperature", parseFloat(e.target.value) || 0)
+                      }
+                      inputProps={{ min: 5, max: 50, step: 0.5 }}
+                      InputProps={{
+                        endAdornment: <InputAdornment position="end">°C</InputAdornment>,
+                      }}
+                      disabled={!scheduleSettings.pmEnabled}
+                      fullWidth
+                    />
+
+                    {scheduleSettings.pmEnabled && (
+                      <Chip
+                        icon={<DeviceThermostat />}
+                        label={`${formatTime(scheduleSettings.pmHours, scheduleSettings.pmMinutes)} → ${scheduleSettings.pmTemperature}°C`}
+                        color="warning"
+                        variant="outlined"
+                      />
+                    )}
+                  </Box>
+                </Paper>
+              </Box>
+
+              {/* Default Temperature */}
+              <Box>
+                <Paper sx={{ p: 3, backgroundColor: "#f5f5f5" }}>
+                  <Typography variant="h6" gutterBottom>
+                    <Thermostat sx={{ mr: 1, verticalAlign: "middle" }} />
+                    Default Temperature
+                  </Typography>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                    Temperature used when no schedule is active
+                  </Typography>
+                  
+                  <TextField
+                    label="Default Target Temperature"
+                    type="number"
+                    value={scheduleSettings.defaultTemperature}
+                    onChange={(e) =>
+                      handleScheduleChange("defaultTemperature", parseFloat(e.target.value) || 0)
+                    }
+                    inputProps={{ min: 5, max: 50, step: 0.5 }}
+                    InputProps={{
+                      endAdornment: <InputAdornment position="end">°C</InputAdornment>,
+                    }}
+                    sx={{ maxWidth: 300 }}
+                  />
+                </Paper>
+              </Box>
+            </Box>
+
+            {/* Schedule Action Buttons */}
+            <Box sx={{ display: "flex", gap: 2, mt: 3, justifyContent: "center" }}>
+              <Button
+                variant="contained"
+                startIcon={<Save />}
+                onClick={saveScheduleSettings}
+                disabled={saveStatus === "saving"}
+                color="primary"
+              >
+                {saveStatus === "saving" ? "Saving Schedule..." : "Save Schedule"}
+              </Button>
+
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  setScheduleSettings({
+                    amEnabled: false,
+                    amHours: 6,
+                    amMinutes: 0,
+                    amTemperature: 22,
+                    pmEnabled: false,
+                    pmHours: 18,
+                    pmMinutes: 0,
+                    pmTemperature: 20,
+                    defaultTemperature: 21,
+                  });
+                }}
+              >
+                Reset Schedule
+              </Button>
+            </Box>
+          </CardContent>
+        </Card>
+
+        {/* MQTT Debug Info */}
+        {lastPublishedData && (
+          <Card>
+            <CardContent>
+              <Typography variant="h6" gutterBottom>
+                📡 Last Published Schedule Data
+              </Typography>
+              <Paper sx={{ p: 2, backgroundColor: "#f5f5f5" }}>
+                <Typography variant="caption" component="pre" sx={{ fontSize: "0.8rem", fontFamily: "monospace" }}>
+                  {lastPublishedData}
+                </Typography>
+              </Paper>
+              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                This data was published to MQTT topics and saved to Firebase. Your ESP32 should receive these values.
+              </Typography>
+            </CardContent>
+          </Card>
+        )}
+
         {/* Temperature Settings */}
         <Card>
           <CardContent>

@@ -7,7 +7,9 @@ import TemperatureDisplay from "./TemperatureDisplay";
 import HeaterControl from "./HeaterControl";
 import SystemStatusCard from "./SystemStatusCard";
 import TemperatureChart from "./TemperatureChart";
+import FirebaseDebugger from "./FirebaseDebugger";
 import { useTemperature } from "../contexts/TemperatureContext";
+import { generateSimpleSystemData } from "../utils/esp32Simulator";
 
 const Dashboard: React.FC = () => {
   const { currentTemperatures, mqttConnected, heaterStatus } = useTemperature();
@@ -25,6 +27,22 @@ const Dashboard: React.FC = () => {
 
         // Set up real-time listeners
         setupRealtimeListeners();
+
+        // Temporarily simulate ESP32 system data for debugging
+        const simulateESP32Data = () => {
+          const systemData = generateSimpleSystemData();
+          console.log("Setting simulated ESP32 system data:", systemData);
+          set(ref(database, "system"), systemData);
+        };
+
+        // Set initial data
+        simulateESP32Data();
+
+        // Update every 30 seconds to simulate real ESP32 behavior
+        const intervalId = setInterval(simulateESP32Data, 30000);
+
+        // Cleanup interval on unmount
+        return () => clearInterval(intervalId);
       } catch (error) {
         console.error("Firebase authentication failed:", error);
       } finally {
@@ -56,19 +74,41 @@ const Dashboard: React.FC = () => {
     onValue(systemRef, (snapshot) => {
       const data = snapshot.val();
       console.log("Firebase system data received:", data);
+      console.log(
+        "Raw Firebase system data structure:",
+        JSON.stringify(data, null, 2)
+      );
+
       if (data) {
+        // Check what fields are actually available
+        console.log("Available system data fields:", Object.keys(data));
+        console.log("data.uptime:", data.uptime, "type:", typeof data.uptime);
+        console.log("data.rssi:", data.rssi, "type:", typeof data.rssi);
+        console.log("data.status:", data.status);
+        console.log("data.wifi:", data.wifi);
+        console.log("data.firebase:", data.firebase);
+        console.log("data.mqtt:", data.mqtt);
+
         // Transform ESP32 system data to match our interface
         const transformedSystemStatus: SystemStatus = {
-          wifi: data.status === "online" ? "CONNECTED" : "ERROR",
-          firebase: data.status === "online" ? "FB_CONNECTED" : "FB_ERROR",
-          mqtt: mqttConnected
-            ? "MQTT_STATE_CONNECTED"
-            : "MQTT_STATE_DISCONNECTED",
-          heaterStatus: heaterStatus,
-          uptime: data.uptime || 0,
-          rssi: data.rssi || -70,
+          // Use actual status fields if they exist, otherwise fallback based on general status
+          wifi: data.wifi || (data.status === "online" ? "CONNECTED" : "ERROR"),
+          firebase:
+            data.firebase ||
+            (data.status === "online" ? "FB_CONNECTED" : "FB_ERROR"),
+          mqtt:
+            data.mqtt ||
+            (mqttConnected
+              ? "MQTT_STATE_CONNECTED"
+              : "MQTT_STATE_DISCONNECTED"),
+          heaterStatus:
+            data.heaterStatus !== undefined ? data.heaterStatus : heaterStatus,
+          uptime:
+            data.uptime !== undefined && data.uptime !== null ? data.uptime : 0,
+          rssi:
+            data.rssi !== undefined && data.rssi !== null ? data.rssi : -100,
           status: data.status || "offline",
-          last_update: data.last_update || Date.now() / 1000,
+          last_update: data.last_update || data.lastUpdate || Date.now() / 1000,
         };
 
         setSystemStatus(transformedSystemStatus);
@@ -78,6 +118,20 @@ const Dashboard: React.FC = () => {
         );
       } else {
         console.log("No system data found at path: /system");
+        // Set a default system status when no data is available
+        const defaultSystemStatus: SystemStatus = {
+          wifi: "ERROR",
+          firebase: "FB_ERROR",
+          mqtt: mqttConnected
+            ? "MQTT_STATE_CONNECTED"
+            : "MQTT_STATE_DISCONNECTED",
+          heaterStatus: heaterStatus,
+          uptime: 0,
+          rssi: -100,
+          status: "offline",
+          last_update: Date.now() / 1000,
+        };
+        setSystemStatus(defaultSystemStatus);
       }
     });
   };
@@ -151,6 +205,11 @@ const Dashboard: React.FC = () => {
         {/* Temperature Chart */}
         <Box>
           <TemperatureChart />
+        </Box>
+
+        {/* Firebase Debugger - for development */}
+        <Box>
+          <FirebaseDebugger />
         </Box>
       </Box>
     </Container>

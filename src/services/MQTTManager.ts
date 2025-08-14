@@ -145,6 +145,52 @@ class MQTTManager {
     return this.publish("esp32/control/mode", mode);
   }
 
+  // Schedule control functions
+  publishSchedule(schedule: any): boolean {
+    const success = this.publish(
+      "esp32/control/schedule",
+      JSON.stringify(schedule)
+    );
+
+    // Also publish individual schedule components for easier ESP32 parsing
+    this.publish(
+      "esp32/control/schedule/am/enabled",
+      schedule.amEnabled.toString()
+    );
+    this.publish(
+      "esp32/control/schedule/am/time",
+      `${schedule.amHours}:${schedule.amMinutes.toString().padStart(2, "0")}`
+    );
+    this.publish(
+      "esp32/control/schedule/am/temperature",
+      schedule.amTemperature.toString()
+    );
+
+    this.publish(
+      "esp32/control/schedule/pm/enabled",
+      schedule.pmEnabled.toString()
+    );
+    this.publish(
+      "esp32/control/schedule/pm/time",
+      `${schedule.pmHours}:${schedule.pmMinutes.toString().padStart(2, "0")}`
+    );
+    this.publish(
+      "esp32/control/schedule/pm/temperature",
+      schedule.pmTemperature.toString()
+    );
+
+    this.publish(
+      "esp32/control/schedule/default",
+      schedule.defaultTemperature.toString()
+    );
+
+    return success;
+  }
+
+  setScheduleEnabled(enabled: boolean): boolean {
+    return this.publish("esp32/control/scheduleEnabled", enabled.toString());
+  }
+
   disconnect() {
     if (this.client) {
       this.client.end();

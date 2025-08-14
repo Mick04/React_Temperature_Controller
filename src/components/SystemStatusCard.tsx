@@ -1,5 +1,14 @@
 import React from "react";
-import { Paper, Typography, Box, Chip, LinearProgress } from "@mui/material";
+import {
+  Paper,
+  Typography,
+  Box,
+  Chip,
+  LinearProgress,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+} from "@mui/material";
 import {
   Wifi,
   WifiOff,
@@ -7,6 +16,7 @@ import {
   CloudOff,
   Router,
   RouterOutlined,
+  ExpandMore,
 } from "@mui/icons-material";
 import type { SystemStatus } from "../types";
 
@@ -183,6 +193,26 @@ const SystemStatusCard: React.FC<SystemStatusCardProps> = ({
           size="small"
         />
       </Box>
+
+      {/* Debug Section */}
+      <Accordion sx={{ mt: 2 }}>
+        <AccordionSummary expandIcon={<ExpandMore />}>
+          <Typography variant="body2" color="text.secondary">
+            Debug Info
+          </Typography>
+        </AccordionSummary>
+        <AccordionDetails>
+          <Box sx={{ textAlign: "left" }}>
+            <Typography
+              variant="caption"
+              component="pre"
+              sx={{ fontSize: "0.7rem", fontFamily: "monospace" }}
+            >
+              {JSON.stringify(systemStatus, null, 2)}
+            </Typography>
+          </Box>
+        </AccordionDetails>
+      </Accordion>
     </Paper>
   );
 };
