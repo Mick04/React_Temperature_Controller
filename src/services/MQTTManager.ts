@@ -147,9 +147,28 @@ class MQTTManager {
 
   // Schedule control functions
   publishSchedule(schedule: any): boolean {
+    // Transform React app format to ESP32 expected format
+    const esp32ScheduleFormat = {
+      am: {
+        enabled: schedule.amEnabled,
+        hours: schedule.amHours,
+        minutes: schedule.amMinutes,
+        temperature: schedule.amTemperature,
+      },
+      pm: {
+        enabled: schedule.pmEnabled,
+        hours: schedule.pmHours,
+        minutes: schedule.pmMinutes,
+        temperature: schedule.pmTemperature,
+      },
+      default_temperature: schedule.defaultTemperature,
+    };
+
+    console.log("📤 Publishing ESP32 schedule format:", esp32ScheduleFormat);
+
     const success = this.publish(
       "esp32/control/schedule",
-      JSON.stringify(schedule)
+      JSON.stringify(esp32ScheduleFormat)
     );
 
     // Also publish individual schedule components for easier ESP32 parsing
@@ -183,6 +202,19 @@ class MQTTManager {
       "esp32/control/schedule/default",
       schedule.defaultTemperature.toString()
     );
+
+    // Also send the default temperature as default_temperature for ESP32 compatibility
+    this.publish(
+      "esp32/control/schedule/default_temperature",
+      schedule.defaultTemperature.toString()
+    );
+
+    // Set control mode to auto when schedule is enabled
+    const scheduleEnabled = schedule.amEnabled || schedule.pmEnabled;
+    if (scheduleEnabled) {
+      this.publish("esp32/control/mode", "auto");
+      console.log("📤 Set control mode to 'auto' because schedule is enabled");
+    }
 
     return success;
   }

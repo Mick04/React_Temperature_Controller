@@ -10,9 +10,12 @@ function App() {
 
   // Check if user is already logged in
   useEffect(() => {
+    console.log("🔍 App: Checking authentication status...");
+
     // Check for logout parameter in URL
     const urlParams = new URLSearchParams(window.location.search);
     if (urlParams.get("logout") === "true") {
+      console.log("🚪 App: Logout requested via URL");
       localStorage.removeItem("esp32-dashboard-auth");
       setIsAuthenticated(false);
       setIsLoading(false);
@@ -22,22 +25,31 @@ function App() {
     }
 
     const authStatus = localStorage.getItem("esp32-dashboard-auth");
+    console.log("🔐 App: Auth status from localStorage:", authStatus);
+
     if (authStatus === "true") {
+      console.log("✅ App: User is authenticated, showing main app");
       setIsAuthenticated(true);
+    } else {
+      console.log("❌ App: User not authenticated, showing login page");
+      setIsAuthenticated(false);
     }
     setIsLoading(false);
   }, []);
 
   const handleLogin = (success: boolean) => {
+    console.log("🔐 App: Login attempt result:", success);
     setIsAuthenticated(success);
   };
 
   const handleLogout = () => {
+    console.log("🚪 App: Logout requested");
     localStorage.removeItem("esp32-dashboard-auth");
     setIsAuthenticated(false);
   };
 
   if (isLoading) {
+    console.log("⏳ App: Still loading...");
     return (
       <div
         style={{
@@ -55,9 +67,11 @@ function App() {
 
   try {
     if (!isAuthenticated) {
+      console.log("🔑 App: Rendering LoginPage");
       return <LoginPage onLogin={handleLogin} />;
     }
 
+    console.log("🏠 App: Rendering MainApp");
     return (
       <TemperatureProvider>
         <MainApp onLogout={handleLogout} />

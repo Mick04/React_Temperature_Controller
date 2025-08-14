@@ -25,8 +25,6 @@ import {
 import { database, auth, signInAnonymously_Custom } from "../firebase";
 import { ref, set, get } from "firebase/database";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import MQTTManager from "../services/MQTTManager";
-import { mqttConfig } from "../config/mqtt";
 import type { ScheduleSettings } from "../types";
 
 interface SettingsPageProps {
@@ -55,8 +53,6 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [workingPath, setWorkingPath] = useState<string | null>(null);
-  const [mqttManager, setMqttManager] = useState<MQTTManager | null>(null);
-  const [mqttConnected, setMqttConnected] = useState(false);
 
   // Authentication effect
   useEffect(() => {
@@ -81,31 +77,6 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
 
     return () => unsubscribe();
   }, [isAuthenticating]);
-
-  // Initialize MQTT connection
-  useEffect(() => {
-    console.log("🔌 Initializing MQTT connection for settings...");
-    const mqtt = new MQTTManager(mqttConfig);
-
-    mqtt.connect({
-      onConnectionStatus: (connected) => {
-        console.log("MQTT connection status in settings:", connected);
-        setMqttConnected(connected);
-      },
-      onError: (error) => {
-        console.error("MQTT connection error in settings:", error);
-        setMqttConnected(false);
-      },
-    });
-
-    setMqttManager(mqtt);
-
-    // Cleanup on unmount
-    return () => {
-      console.log("🔌 Disconnecting MQTT from settings");
-      mqtt.disconnect();
-    };
-  }, []);
 
   // Load settings on mount
   useEffect(() => {
@@ -189,32 +160,6 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     }));
   };
 
-  const publishScheduleToMQTT = async (
-    schedule: ScheduleSettings
-  ): Promise<boolean> => {
-    try {
-      console.log("🔌 Publishing schedule to MQTT...", schedule);
-
-      if (!mqttManager || !mqttConnected) {
-        console.warn("⚠️ MQTT not connected, skipping publish");
-        return false;
-      }
-
-      const success = mqttManager.publishSchedule(schedule);
-
-      if (success) {
-        console.log("✅ Schedule published to MQTT successfully");
-      } else {
-        console.warn("❌ Failed to publish schedule to MQTT");
-      }
-
-      return success;
-    } catch (error) {
-      console.error("❌ MQTT publish error:", error);
-      return false;
-    }
-  };
-
   const saveScheduleSettings = async () => {
     setSaveStatus("saving");
     setErrorDetails("Saving...");
@@ -278,25 +223,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
       console.log("✅ Save successful!");
       setSaveStatus("success");
       setHasUserMadeChanges(false);
-
-      // Also publish to MQTT (but don't fail if it doesn't work)
-      try {
-        const mqttSuccess = await publishScheduleToMQTT(scheduleSettings);
-        if (mqttSuccess) {
-          setErrorDetails(
-            `✅ Settings saved to Firebase (${savedToPath}) and published to MQTT`
-          );
-        } else {
-          setErrorDetails(
-            `✅ Settings saved to Firebase (${savedToPath}), but MQTT publish failed`
-          );
-        }
-      } catch (mqttError) {
-        console.warn("⚠️ MQTT publish error (continuing anyway):", mqttError);
-        setErrorDetails(
-          `✅ Settings saved to Firebase (${savedToPath}), but MQTT publish failed`
-        );
-      }
+      setErrorDetails(`✅ Settings saved successfully to: ${savedToPath}`);
 
       // Auto-clear status after 3 seconds
       setTimeout(() => {
@@ -370,16 +297,6 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
       {user && (
         <Alert severity="success" sx={{ mb: 3 }}>
           ✅ Authenticated (User ID: {user.uid.substring(0, 8)}...)
-        </Alert>
-      )}
-
-      {mqttConnected ? (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          🔌 MQTT Connected - Settings will be sent to ESP32
-        </Alert>
-      ) : (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          ⚠️ MQTT Disconnected - Settings will only be saved to Firebase
         </Alert>
       )}
 

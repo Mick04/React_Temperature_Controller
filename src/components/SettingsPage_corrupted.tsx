@@ -25,8 +25,6 @@ import {
 import { database, auth, signInAnonymously_Custom } from "../firebase";
 import { ref, set, get } from "firebase/database";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import MQTTManager from "../services/MQTTManager";
-import { mqttConfig } from "../config/mqtt";
 import type { ScheduleSettings } from "../types";
 
 interface SettingsPageProps {
@@ -55,8 +53,6 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [workingPath, setWorkingPath] = useState<string | null>(null);
-  const [mqttManager, setMqttManager] = useState<MQTTManager | null>(null);
-  const [mqttConnected, setMqttConnected] = useState(false);
 
   // Authentication effect
   useEffect(() => {
@@ -82,31 +78,6 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     return () => unsubscribe();
   }, [isAuthenticating]);
 
-  // Initialize MQTT connection
-  useEffect(() => {
-    console.log("🔌 Initializing MQTT connection for settings...");
-    const mqtt = new MQTTManager(mqttConfig);
-
-    mqtt.connect({
-      onConnectionStatus: (connected) => {
-        console.log("MQTT connection status in settings:", connected);
-        setMqttConnected(connected);
-      },
-      onError: (error) => {
-        console.error("MQTT connection error in settings:", error);
-        setMqttConnected(false);
-      },
-    });
-
-    setMqttManager(mqtt);
-
-    // Cleanup on unmount
-    return () => {
-      console.log("🔌 Disconnecting MQTT from settings");
-      mqtt.disconnect();
-    };
-  }, []);
-
   // Load settings on mount
   useEffect(() => {
     const loadInitialData = async () => {
@@ -117,34 +88,21 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
         }
 
         console.log("📥 Loading schedule settings...");
-
+        
         // Try to load from the same paths we save to, with preference for known working path
-        const possiblePaths = workingPath
-          ? [
-              workingPath,
-              `users/${user.uid}/schedule`,
-              `schedule`,
-              `data/schedule`,
-              `user-data/${user.uid}/schedule`,
-              `public/schedule`,
-            ]
-          : [
-              `users/${user.uid}/schedule`,
-              `schedule`,
-              `data/schedule`,
-              `user-data/${user.uid}/schedule`,
-              `public/schedule`,
-            ];
-
+        const possiblePaths = workingPath 
+          ? [workingPath, `users/${user.uid}/schedule`, `schedule`, `data/schedule`, `user-data/${user.uid}/schedule`, `public/schedule`]
+          : [`users/${user.uid}/schedule`, `schedule`, `data/schedule`, `user-data/${user.uid}/schedule`, `public/schedule`];
+        
         let loadedData = null;
         let loadedFrom = null;
-
+        
         for (const path of possiblePaths) {
           try {
             console.log(`🔍 Trying to load from path: ${path}`);
             const scheduleRef = ref(database, path);
             const snapshot = await get(scheduleRef);
-
+            
             if (snapshot.exists()) {
               loadedData = snapshot.val();
               loadedFrom = path;
@@ -158,7 +116,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
             console.log(`❌ Failed to load from ${path}:`, error.code);
           }
         }
-
+        
         if (loadedData && isInitialLoad) {
           console.log("✅ Setting loaded schedule data:", loadedData);
           setScheduleSettings(loadedData);
@@ -179,40 +137,12 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     if (isInitialLoad && user) {
       loadInitialData();
     }
-  }, [isInitialLoad, user, workingPath]);
-
-  const handleScheduleChange = (field: keyof ScheduleSettings, value: any) => {
+  }, [isInitialLoad, user]);  const handleScheduleChange = (field: keyof ScheduleSettings, value: any) => {
     setHasUserMadeChanges(true);
     setScheduleSettings((prev) => ({
       ...prev,
       [field]: value,
     }));
-  };
-
-  const publishScheduleToMQTT = async (
-    schedule: ScheduleSettings
-  ): Promise<boolean> => {
-    try {
-      console.log("🔌 Publishing schedule to MQTT...", schedule);
-
-      if (!mqttManager || !mqttConnected) {
-        console.warn("⚠️ MQTT not connected, skipping publish");
-        return false;
-      }
-
-      const success = mqttManager.publishSchedule(schedule);
-
-      if (success) {
-        console.log("✅ Schedule published to MQTT successfully");
-      } else {
-        console.warn("❌ Failed to publish schedule to MQTT");
-      }
-
-      return success;
-    } catch (error) {
-      console.error("❌ MQTT publish error:", error);
-      return false;
-    }
   };
 
   const saveScheduleSettings = async () => {
@@ -232,29 +162,16 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
 
       console.log("💾 Attempting to save to Firebase:", scheduleSettings);
       console.log("🔐 Current user:", user?.uid || "Not authenticated");
-
+      
       // Try different paths to find one with write access, with preference for known working path
-      const possiblePaths = workingPath
-        ? [
-            workingPath,
-            `users/${user?.uid}/schedule`,
-            `schedule`,
-            `data/schedule`,
-            `user-data/${user?.uid}/schedule`,
-            `public/schedule`,
-          ]
-        : [
-            `users/${user?.uid}/schedule`,
-            `schedule`,
-            `data/schedule`,
-            `user-data/${user?.uid}/schedule`,
-            `public/schedule`,
-          ];
-
+      const possiblePaths = workingPath 
+        ? [workingPath, `users/${user?.uid}/schedule`, `schedule`, `data/schedule`, `user-data/${user?.uid}/schedule`, `public/schedule`]
+        : [`users/${user?.uid}/schedule`, `schedule`, `data/schedule`, `user-data/${user?.uid}/schedule`, `public/schedule`];
+      
       let savedSuccessfully = false;
       let lastError = null;
       let savedToPath = null;
-
+      
       for (const path of possiblePaths) {
         try {
           console.log(`🔍 Trying to save to path: ${path}`);
@@ -270,37 +187,21 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
           lastError = error;
         }
       }
-
+      
       if (!savedSuccessfully) {
         throw lastError || new Error("All save paths failed");
       }
-
+      
       console.log("✅ Save successful!");
       setSaveStatus("success");
       setHasUserMadeChanges(false);
-
-      // Also publish to MQTT (but don't fail if it doesn't work)
-      try {
-        const mqttSuccess = await publishScheduleToMQTT(scheduleSettings);
-        if (mqttSuccess) {
-          setErrorDetails(
-            `✅ Settings saved to Firebase (${savedToPath}) and published to MQTT`
-          );
-        } else {
-          setErrorDetails(
-            `✅ Settings saved to Firebase (${savedToPath}), but MQTT publish failed`
-          );
-        }
-      } catch (mqttError) {
-        console.warn("⚠️ MQTT publish error (continuing anyway):", mqttError);
-        setErrorDetails(
-          `✅ Settings saved to Firebase (${savedToPath}), but MQTT publish failed`
-        );
-      }
+      setErrorDetails(`✅ Settings saved successfully to: ${savedToPath}`);
 
       // Auto-clear status after 3 seconds
       setTimeout(() => {
         setSaveStatus("idle");
+        setErrorDetails("");
+      }, 3000);
         setErrorDetails("");
       }, 3000);
     } catch (error: any) {
@@ -328,6 +229,39 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     return `${hours.toString().padStart(2, "0")}:${minutes
       .toString()
       .padStart(2, "0")}`;
+  };
+
+  const testFirebasePermissions = async () => {
+    try {
+      setErrorDetails("🔍 Testing Firebase permissions...");
+
+      // Test read access
+      const testRef = ref(database, "test");
+      await get(testRef);
+      console.log("✅ Read test passed");
+
+      // Test write access to different paths
+      const testPaths = ["test/write", "schedule/test", "data/test"];
+
+      for (const path of testPaths) {
+        try {
+          const testWriteRef = ref(database, path);
+          await set(testWriteRef, { test: true, timestamp: Date.now() });
+          console.log(`✅ Write test passed for: ${path}`);
+          setErrorDetails(`✅ Write access confirmed for: ${path}`);
+          return; // Success!
+        } catch (error: any) {
+          console.log(`❌ Write test failed for ${path}:`, error.code);
+        }
+      }
+
+      setErrorDetails("❌ No write access to any tested paths");
+    } catch (error: any) {
+      console.error("❌ Permission test failed:", error);
+      setErrorDetails(
+        `❌ Permission test failed: ${error.code} - ${error.message}`
+      );
+    }
   };
 
   return (
@@ -370,16 +304,6 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
       {user && (
         <Alert severity="success" sx={{ mb: 3 }}>
           ✅ Authenticated (User ID: {user.uid.substring(0, 8)}...)
-        </Alert>
-      )}
-
-      {mqttConnected ? (
-        <Alert severity="success" sx={{ mb: 3 }}>
-          🔌 MQTT Connected - Settings will be sent to ESP32
-        </Alert>
-      ) : (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          ⚠️ MQTT Disconnected - Settings will only be saved to Firebase
         </Alert>
       )}
 
@@ -631,6 +555,15 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                   : hasUserMadeChanges
                   ? "Save Changes"
                   : "Save Schedule"}
+              </Button>
+
+              <Button
+                variant="outlined"
+                onClick={testFirebasePermissions}
+                disabled={saveStatus === "saving" || isAuthenticating}
+                size="large"
+              >
+                Test Permissions
               </Button>
             </Box>
           </CardContent>

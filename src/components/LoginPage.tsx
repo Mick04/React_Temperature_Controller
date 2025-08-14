@@ -22,6 +22,8 @@ const LoginPage: React.FC<LoginPageProps> = ({ onLogin }) => {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  console.log("🔑 LoginPage: Component mounted");
+
   // Simple password - you can change this to whatever you want
   const DASHBOARD_PASSWORD = "Log1951In";
 
