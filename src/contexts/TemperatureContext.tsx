@@ -52,83 +52,81 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
       // Authenticate first
       await signInAnonymously_Custom();
 
-      // Try to get temperature data from Firebase
-      const tempRef = ref(database, "sensors");
-      const snapshot = await get(tempRef);
+      // Try multiple possible paths where temperature data might be stored
+      const possiblePaths = [
+        "/",                    // Root level
+        "sensors",              // Sensors path
+        "data",                 // Data path
+        "temperature",          // Temperature path
+        "system",              // System path
+      ];
 
-      if (snapshot.exists()) {
-        const data = snapshot.val();
-        console.log("📊 Firebase temperature data:", data);
+      for (const path of possiblePaths) {
+        try {
+          console.log(`🔍 Checking Firebase path: ${path}`);
+          const tempRef = ref(database, path);
+          const snapshot = await get(tempRef);
 
-        // Extract temperature values - handle different possible structures
-        let red = 0,
-          blue = 0,
-          green = 0;
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            console.log(`📊 Data found at ${path}:`, JSON.stringify(data, null, 2));
 
-        if (data.temperature_red !== undefined) {
-          red = data.temperature_red;
-          blue = data.temperature_blue || 0;
-          green = data.temperature_green || 0;
-        } else if (data.temperature) {
-          red = data.temperature.red || 0;
-          blue = data.temperature.blue || 0;
-          green = data.temperature.green || 0;
-        }
+            // Look for temperature data in various formats
+            let red = 0, blue = 0, green = 0;
+            let found = false;
 
-        const average = (red + blue + green) / 3;
+            // Format 1: Direct temperature_red, temperature_blue, temperature_green
+            if (data.temperature_red !== undefined) {
+              red = Number(data.temperature_red);
+              blue = Number(data.temperature_blue) || 0;
+              green = Number(data.temperature_green) || 0;
+              found = true;
+              console.log(`✅ Found direct temperature format at ${path}`);
+            }
+            // Format 2: Nested under temperature object
+            else if (data.temperature && typeof data.temperature === 'object') {
+              if (data.temperature.red !== undefined) {
+                red = Number(data.temperature.red);
+                blue = Number(data.temperature.blue) || 0;
+                green = Number(data.temperature.green) || 0;
+                found = true;
+                console.log(`✅ Found nested temperature.red format at ${path}`);
+              }
+            }
+            // Format 3: Nested sensors object
+            else if (data.sensors && typeof data.sensors === 'object') {
+              if (data.sensors.temperature_red !== undefined) {
+                red = Number(data.sensors.temperature_red);
+                blue = Number(data.sensors.temperature_blue) || 0;
+                green = Number(data.sensors.temperature_green) || 0;
+                found = true;
+                console.log(`✅ Found sensors.temperature_red format at ${path}`);
+              }
+            }
 
-        console.log(
-          `🌡️ Initial temperatures - Red: ${red}°C, Blue: ${blue}°C, Green: ${green}°C, Average: ${average.toFixed(
-            1
-          )}°C`
-        );
-
-        setCurrentTemperatures({
-          red,
-          blue,
-          green,
-          average,
-        });
-      } else {
-        console.log("📭 No temperature data found in Firebase sensors path");
-
-        // Try alternative path at root level
-        const rootRef = ref(database, "/");
-        const rootSnapshot = await get(rootRef);
-
-        if (rootSnapshot.exists()) {
-          const rootData = rootSnapshot.val();
-          console.log(
-            "📊 Checking root Firebase data for temperatures:",
-            rootData
-          );
-
-          let red = 0,
-            blue = 0,
-            green = 0;
-
-          if (rootData.temperature_red !== undefined) {
-            red = rootData.temperature_red;
-            blue = rootData.temperature_blue || 0;
-            green = rootData.temperature_green || 0;
-
-            const average = (red + blue + green) / 3;
-
-            console.log(
-              `🌡️ Found temperatures at root - Red: ${red}°C, Blue: ${blue}°C, Green: ${green}°C, Average: ${average.toFixed(
-                1
-              )}°C`
-            );
-
-            setCurrentTemperatures({
-              red,
-              blue,
-              green,
-              average,
-            });
+            if (found) {
+              const average = (red + blue + green) / 3;
+              
+              console.log(`🌡️ Setting temperatures - Red: ${red}°C, Blue: ${blue}°C, Green: ${green}°C, Average: ${average.toFixed(1)}°C`);
+              
+              setCurrentTemperatures({
+                red,
+                blue,
+                green,
+                average,
+              });
+              
+              return; // Success, exit the loop
+            }
+          } else {
+            console.log(`📭 No data at path: ${path}`);
           }
+        } catch (error) {
+          console.error(`❌ Error reading path ${path}:`, error);
         }
       }
+      
+      console.log("⚠️ No temperature data found in any Firebase path");
     } catch (error) {
       console.error("❌ Failed to load initial temperatures:", error);
     }
