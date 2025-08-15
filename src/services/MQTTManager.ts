@@ -11,6 +11,7 @@ export interface MQTTConfig {
 export interface MQTTCallbacks {
   onTemperatureUpdate?: (sensor: string, temperature: number) => void;
   onHeaterStatusUpdate?: (status: boolean) => void;
+  onSystemStatusUpdate?: (statusData: any) => void;
   onConnectionStatus?: (connected: boolean) => void;
   onError?: (error: Error) => void;
 }
@@ -20,6 +21,8 @@ class MQTTManager {
   private callbacks: MQTTCallbacks = {};
   private isConnected = false;
   private config: MQTTConfig;
+  private connectionAttempts = 0;
+  private maxConnectionAttempts = 5;
 
   constructor(config: MQTTConfig) {
     this.config = config;
@@ -27,6 +30,7 @@ class MQTTManager {
 
   connect(callbacks: MQTTCallbacks = {}) {
     this.callbacks = callbacks;
+    this.connectionAttempts++;
 
     const options: mqtt.IClientOptions = {
       clientId:
@@ -36,14 +40,22 @@ class MQTTManager {
       password: this.config.password,
       reconnectPeriod: 5000,
       connectTimeout: 30000,
+      keepalive: 60,
+      clean: true,
+      rejectUnauthorized: true,
     };
 
     try {
+      console.log("🔌 Attempting MQTT connection to:", this.config.brokerUrl);
+      console.log("🔐 Using credentials:", this.config.username ? "✅" : "❌");
+      console.log("📊 Connection attempt:", this.connectionAttempts);
+
       this.client = mqtt.connect(this.config.brokerUrl, options);
 
       this.client.on("connect", () => {
-        console.log("MQTT connected to", this.config.brokerUrl);
+        console.log("✅ MQTT connected successfully to", this.config.brokerUrl);
         this.isConnected = true;
+        this.connectionAttempts = 0; // Reset on successful connection
         this.callbacks.onConnectionStatus?.(true);
 
         // Subscribe to ESP32 topics
@@ -55,21 +67,45 @@ class MQTTManager {
       });
 
       this.client.on("error", (error: Error) => {
-        console.error("MQTT error:", error);
+        console.error("❌ MQTT connection error:", error);
+        console.error("❌ Error details:", {
+          message: error.message,
+          name: error.name,
+          connectionAttempt: this.connectionAttempts,
+        });
+
+        this.isConnected = false;
+        this.callbacks.onConnectionStatus?.(false);
         this.callbacks.onError?.(error);
+
+        // If we've exceeded max attempts, stop trying
+        if (this.connectionAttempts >= this.maxConnectionAttempts) {
+          console.error(
+            `❌ Max connection attempts (${this.maxConnectionAttempts}) reached. Stopping reconnection.`
+          );
+          this.client?.end(true);
+        }
       });
 
       this.client.on("close", () => {
-        console.log("MQTT disconnected");
+        console.log("🔌 MQTT connection closed");
+        this.isConnected = false;
+        this.callbacks.onConnectionStatus?.(false);
+      });
+
+      this.client.on("offline", () => {
+        console.log("📵 MQTT client went offline");
         this.isConnected = false;
         this.callbacks.onConnectionStatus?.(false);
       });
 
       this.client.on("reconnect", () => {
-        console.log("MQTT reconnecting...");
+        console.log("🔄 MQTT attempting to reconnect...");
       });
     } catch (error) {
-      console.error("Failed to connect to MQTT broker:", error);
+      console.error("❌ Failed to initialize MQTT connection:", error);
+      this.isConnected = false;
+      this.callbacks.onConnectionStatus?.(false);
       this.callbacks.onError?.(error as Error);
     }
   }
@@ -83,14 +119,17 @@ class MQTTManager {
       "esp32/sensors/temperature/green",
       "esp32/sensors/heaterStatus",
       "esp32/system/status",
+      "esp32/system/rssi",
+      "esp32/system/uptime",
+      "esp32/system/wifi",
     ];
 
     topics.forEach((topic) => {
       this.client?.subscribe(topic, (error) => {
         if (error) {
-          console.error(`Failed to subscribe to ${topic}:`, error);
+          console.error(`❌ Failed to subscribe to ${topic}:`, error);
         } else {
-          console.log(`Subscribed to ${topic}`);
+          console.log(`✅ Subscribed to ${topic}`);
         }
       });
     });
@@ -98,7 +137,7 @@ class MQTTManager {
 
   private handleMessage(topic: string, message: string) {
     try {
-      console.log(`MQTT message on ${topic}:`, message);
+      console.log(`📨 MQTT message on ${topic}:`, message);
 
       if (topic.includes("/temperature/")) {
         const sensorType = topic.split("/").pop();
@@ -110,9 +149,33 @@ class MQTTManager {
       } else if (topic.includes("/heaterStatus")) {
         const status = message.toLowerCase() === "true" || message === "1";
         this.callbacks.onHeaterStatusUpdate?.(status);
+      } else if (topic.includes("/system/")) {
+        // Handle individual system status updates
+        if (topic.includes("/rssi")) {
+          const rssi = parseInt(message);
+          if (!isNaN(rssi)) {
+            this.callbacks.onSystemStatusUpdate?.({ rssi });
+          }
+        } else if (topic.includes("/uptime")) {
+          const uptime = parseInt(message);
+          if (!isNaN(uptime)) {
+            this.callbacks.onSystemStatusUpdate?.({ uptime });
+          }
+        } else if (topic.includes("/wifi")) {
+          this.callbacks.onSystemStatusUpdate?.({ wifi: message });
+        } else if (topic.includes("/status")) {
+          // Handle full system status object
+          try {
+            const statusData = JSON.parse(message);
+            this.callbacks.onSystemStatusUpdate?.(statusData);
+          } catch (parseError) {
+            // If not JSON, treat as simple status string
+            this.callbacks.onSystemStatusUpdate?.({ status: message });
+          }
+        }
       }
     } catch (error) {
-      console.error("Error parsing MQTT message:", error);
+      console.error("❌ Error parsing MQTT message:", error);
     }
   }
 
@@ -154,12 +217,18 @@ class MQTTManager {
         hours: schedule.amHours,
         minutes: schedule.amMinutes,
         temperature: schedule.amTemperature,
+        scheduledTime: `${schedule.amHours
+          .toString()
+          .padStart(2, "0")}:${schedule.amMinutes.toString().padStart(2, "0")}`,
       },
       pm: {
         enabled: schedule.pmEnabled,
         hours: schedule.pmHours,
         minutes: schedule.pmMinutes,
         temperature: schedule.pmTemperature,
+        scheduledTime: `${schedule.pmHours
+          .toString()
+          .padStart(2, "0")}:${schedule.pmMinutes.toString().padStart(2, "0")}`,
       },
       default_temperature: schedule.defaultTemperature,
     };
@@ -181,6 +250,12 @@ class MQTTManager {
       `${schedule.amHours}:${schedule.amMinutes.toString().padStart(2, "0")}`
     );
     this.publish(
+      "esp32/control/schedule/am/scheduledTime",
+      `${schedule.amHours.toString().padStart(2, "0")}:${schedule.amMinutes
+        .toString()
+        .padStart(2, "0")}`
+    );
+    this.publish(
       "esp32/control/schedule/am/temperature",
       schedule.amTemperature.toString()
     );
@@ -192,6 +267,12 @@ class MQTTManager {
     this.publish(
       "esp32/control/schedule/pm/time",
       `${schedule.pmHours}:${schedule.pmMinutes.toString().padStart(2, "0")}`
+    );
+    this.publish(
+      "esp32/control/schedule/pm/scheduledTime",
+      `${schedule.pmHours.toString().padStart(2, "0")}:${schedule.pmMinutes
+        .toString()
+        .padStart(2, "0")}`
     );
     this.publish(
       "esp32/control/schedule/pm/temperature",

@@ -17,6 +17,12 @@ interface TemperatureContextType {
   mqttConnected: boolean;
   heaterStatus: boolean;
   targetTemperature: number;
+  systemStatus: {
+    rssi: number;
+    uptime: number;
+    wifi: string;
+    lastUpdate: number;
+  };
 }
 
 const TemperatureContext = createContext<TemperatureContextType | undefined>(
@@ -43,6 +49,12 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
   const [mqttConnected, setMqttConnected] = useState(false);
   const [heaterStatus, setHeaterStatus] = useState(false);
   const [targetTemperature] = useState(22);
+  const [systemStatus, setSystemStatus] = useState({
+    rssi: -100,
+    uptime: 0,
+    wifi: "UNKNOWN",
+    lastUpdate: Date.now() / 1000,
+  });
 
   // Load initial temperature values from Firebase
   const loadInitialTemperatures = async () => {
@@ -54,11 +66,11 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
 
       // Try multiple possible paths where temperature data might be stored
       const possiblePaths = [
-        "/",                    // Root level
-        "sensors",              // Sensors path
-        "data",                 // Data path
-        "temperature",          // Temperature path
-        "system",              // System path
+        "/", // Root level
+        "sensors", // Sensors path
+        "data", // Data path
+        "temperature", // Temperature path
+        "system", // System path
       ];
 
       for (const path of possiblePaths) {
@@ -69,10 +81,15 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
 
           if (snapshot.exists()) {
             const data = snapshot.val();
-            console.log(`📊 Data found at ${path}:`, JSON.stringify(data, null, 2));
+            console.log(
+              `📊 Data found at ${path}:`,
+              JSON.stringify(data, null, 2)
+            );
 
             // Look for temperature data in various formats
-            let red = 0, blue = 0, green = 0;
+            let red = 0,
+              blue = 0,
+              green = 0;
             let found = false;
 
             // Format 1: Direct temperature_red, temperature_blue, temperature_green
@@ -84,38 +101,46 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
               console.log(`✅ Found direct temperature format at ${path}`);
             }
             // Format 2: Nested under temperature object
-            else if (data.temperature && typeof data.temperature === 'object') {
+            else if (data.temperature && typeof data.temperature === "object") {
               if (data.temperature.red !== undefined) {
                 red = Number(data.temperature.red);
                 blue = Number(data.temperature.blue) || 0;
                 green = Number(data.temperature.green) || 0;
                 found = true;
-                console.log(`✅ Found nested temperature.red format at ${path}`);
+                console.log(
+                  `✅ Found nested temperature.red format at ${path}`
+                );
               }
             }
             // Format 3: Nested sensors object
-            else if (data.sensors && typeof data.sensors === 'object') {
+            else if (data.sensors && typeof data.sensors === "object") {
               if (data.sensors.temperature_red !== undefined) {
                 red = Number(data.sensors.temperature_red);
                 blue = Number(data.sensors.temperature_blue) || 0;
                 green = Number(data.sensors.temperature_green) || 0;
                 found = true;
-                console.log(`✅ Found sensors.temperature_red format at ${path}`);
+                console.log(
+                  `✅ Found sensors.temperature_red format at ${path}`
+                );
               }
             }
 
             if (found) {
               const average = (red + blue + green) / 3;
-              
-              console.log(`🌡️ Setting temperatures - Red: ${red}°C, Blue: ${blue}°C, Green: ${green}°C, Average: ${average.toFixed(1)}°C`);
-              
+
+              console.log(
+                `🌡️ Setting temperatures - Red: ${red}°C, Blue: ${blue}°C, Green: ${green}°C, Average: ${average.toFixed(
+                  1
+                )}°C`
+              );
+
               setCurrentTemperatures({
                 red,
                 blue,
                 green,
                 average,
               });
-              
+
               return; // Success, exit the loop
             }
           } else {
@@ -125,7 +150,7 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
           console.error(`❌ Error reading path ${path}:`, error);
         }
       }
-      
+
       console.log("⚠️ No temperature data found in any Firebase path");
     } catch (error) {
       console.error("❌ Failed to load initial temperatures:", error);
@@ -183,6 +208,14 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
         console.log("MQTT heater status update:", status);
         setHeaterStatus(status);
       },
+      onSystemStatusUpdate: (statusData) => {
+        console.log("MQTT system status update:", statusData);
+        setSystemStatus((prev) => ({
+          ...prev,
+          ...statusData,
+          lastUpdate: Date.now() / 1000,
+        }));
+      },
       onError: (error) => {
         console.error("MQTT error:", error);
         setMqttConnected(false);
@@ -208,6 +241,7 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
     mqttConnected,
     heaterStatus,
     targetTemperature,
+    systemStatus,
   };
 
   return (

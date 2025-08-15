@@ -5,6 +5,14 @@ export const mqttConfig = {
   username: "ESP32FireBaseTortoise", // Replace with your HiveMQ credentials
   password: "ESP32FireBaseHea1951Ter", // Replace with your HiveMQ credentials
   clientId: `react_dashboard_${Math.random().toString(16).substr(2, 8)}`,
+  // Add additional connection options for better reliability
+  options: {
+    keepalive: 60,
+    clean: true,
+    reconnectPeriod: 5000,
+    connectTimeout: 30000,
+    rejectUnauthorized: true,
+  },
 };
 
 // MQTT Topics matching your ESP32 configuration

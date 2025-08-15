@@ -8,11 +8,17 @@ import HeaterControl from "./HeaterControl";
 import SystemStatusCard from "./SystemStatusCard";
 import TemperatureChart from "./TemperatureChart";
 import FirebaseDebugger from "./FirebaseDebugger";
+import MQTTDebugger from "./MQTTDebugger";
 import { useTemperature } from "../contexts/TemperatureContext";
 // import { generateSimpleSystemData } from "../utils/esp32Simulator"; // Disabled - uncomment to enable simulation
 
 const Dashboard: React.FC = () => {
-  const { currentTemperatures, mqttConnected, heaterStatus } = useTemperature();
+  const {
+    currentTemperatures,
+    mqttConnected,
+    heaterStatus,
+    systemStatus: mqttSystemStatus,
+  } = useTemperature();
   const [controlSettings, setControlSettings] =
     useState<ControlSettings | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
@@ -107,9 +113,17 @@ const Dashboard: React.FC = () => {
           heaterStatus:
             data.heaterStatus !== undefined ? data.heaterStatus : heaterStatus,
           uptime:
-            data.uptime !== undefined && data.uptime !== null ? data.uptime : 0,
+            mqttSystemStatus.uptime > 0
+              ? mqttSystemStatus.uptime
+              : data.uptime !== undefined && data.uptime !== null
+              ? data.uptime
+              : 0,
           rssi:
-            data.rssi !== undefined && data.rssi !== null ? data.rssi : -100,
+            mqttSystemStatus.rssi > -100
+              ? mqttSystemStatus.rssi
+              : data.rssi !== undefined && data.rssi !== null
+              ? data.rssi
+              : -100,
           status: data.status || "offline",
           last_update: data.last_update || data.lastUpdate || Date.now() / 1000,
         };
@@ -129,8 +143,8 @@ const Dashboard: React.FC = () => {
             ? "MQTT_STATE_CONNECTED"
             : "MQTT_STATE_DISCONNECTED",
           heaterStatus: heaterStatus,
-          uptime: 0,
-          rssi: -100,
+          uptime: mqttSystemStatus.uptime || 0,
+          rssi: mqttSystemStatus.rssi || -100,
           status: "offline",
           last_update: Date.now() / 1000,
         };
@@ -193,8 +207,7 @@ const Dashboard: React.FC = () => {
           <Box sx={{ flex: { md: "1 0 40%" } }}>
             {systemStatus && <SystemStatusCard systemStatus={systemStatus} />}
           </Box>
-
-          {/* Heater Control */}
+          {/* Heater Control
           <Box sx={{ flex: { md: "1 0 60%" } }}>
             {controlSettings && (
               <HeaterControl
@@ -202,7 +215,7 @@ const Dashboard: React.FC = () => {
                 onControlChange={updateControlSettings}
               />
             )}
-          </Box>
+          </Box> */}
         </Box>
 
         {/* Temperature Chart */}
@@ -213,6 +226,11 @@ const Dashboard: React.FC = () => {
         {/* Firebase Debugger - for development */}
         <Box>
           <FirebaseDebugger />
+        </Box>
+
+        {/* MQTT Debugger - for development */}
+        <Box>
+          <MQTTDebugger />
         </Box>
       </Box>
     </Container>

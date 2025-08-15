@@ -233,6 +233,26 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
       console.log("💾 Attempting to save to Firebase:", scheduleSettings);
       console.log("🔐 Current user:", user?.uid || "Not authenticated");
 
+      // Enhance schedule settings with scheduledTime for Firebase
+      const enhancedScheduleSettings = {
+        ...scheduleSettings,
+        amScheduledTime: `${scheduleSettings.amHours
+          .toString()
+          .padStart(2, "0")}:${scheduleSettings.amMinutes
+          .toString()
+          .padStart(2, "0")}`,
+        pmScheduledTime: `${scheduleSettings.pmHours
+          .toString()
+          .padStart(2, "0")}:${scheduleSettings.pmMinutes
+          .toString()
+          .padStart(2, "0")}`,
+      };
+
+      console.log(
+        "💾 Enhanced schedule settings with scheduledTime:",
+        enhancedScheduleSettings
+      );
+
       // Try different paths to find one with write access, with preference for known working path
       const possiblePaths = workingPath
         ? [
@@ -259,7 +279,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
         try {
           console.log(`🔍 Trying to save to path: ${path}`);
           const scheduleRef = ref(database, path);
-          await set(scheduleRef, scheduleSettings);
+          await set(scheduleRef, enhancedScheduleSettings);
           console.log(`✅ Save successful to path: ${path}`);
           savedSuccessfully = true;
           savedToPath = path;
@@ -421,36 +441,27 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                 </Box>
 
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <TextField
-                      label="Hours"
-                      type="number"
-                      value={scheduleSettings.amHours}
-                      onChange={(e) =>
-                        handleScheduleChange(
-                          "amHours",
-                          parseInt(e.target.value) || 0
-                        )
-                      }
-                      inputProps={{ min: 0, max: 23 }}
-                      disabled={!scheduleSettings.amEnabled}
-                      sx={{ flex: 1 }}
-                    />
-                    <TextField
-                      label="Minutes"
-                      type="number"
-                      value={scheduleSettings.amMinutes}
-                      onChange={(e) =>
-                        handleScheduleChange(
-                          "amMinutes",
-                          parseInt(e.target.value) || 0
-                        )
-                      }
-                      inputProps={{ min: 0, max: 59 }}
-                      disabled={!scheduleSettings.amEnabled}
-                      sx={{ flex: 1 }}
-                    />
-                  </Box>
+                  <TextField
+                    label="Schedule Time (24-hour format)"
+                    type="time"
+                    value={`${scheduleSettings.amHours
+                      .toString()
+                      .padStart(2, "0")}:${scheduleSettings.amMinutes
+                      .toString()
+                      .padStart(2, "0")}`}
+                    onChange={(e) => {
+                      const [hours, minutes] = e.target.value
+                        .split(":")
+                        .map((num) => parseInt(num) || 0);
+                      handleScheduleChange("amHours", hours);
+                      handleScheduleChange("amMinutes", minutes);
+                    }}
+                    disabled={!scheduleSettings.amEnabled}
+                    sx={{ maxWidth: 200 }}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                  />
 
                   <TextField
                     label="Target Temperature"
@@ -514,36 +525,27 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                 </Box>
 
                 <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                  <Box sx={{ display: "flex", gap: 1 }}>
-                    <TextField
-                      label="Hours"
-                      type="number"
-                      value={scheduleSettings.pmHours}
-                      onChange={(e) =>
-                        handleScheduleChange(
-                          "pmHours",
-                          parseInt(e.target.value) || 0
-                        )
-                      }
-                      inputProps={{ min: 0, max: 23 }}
-                      disabled={!scheduleSettings.pmEnabled}
-                      sx={{ flex: 1 }}
-                    />
-                    <TextField
-                      label="Minutes"
-                      type="number"
-                      value={scheduleSettings.pmMinutes}
-                      onChange={(e) =>
-                        handleScheduleChange(
-                          "pmMinutes",
-                          parseInt(e.target.value) || 0
-                        )
-                      }
-                      inputProps={{ min: 0, max: 59 }}
-                      disabled={!scheduleSettings.pmEnabled}
-                      sx={{ flex: 1 }}
-                    />
-                  </Box>
+                  <TextField
+                    label="Schedule Time (24-hour format)"
+                    type="time"
+                    value={`${scheduleSettings.pmHours
+                      .toString()
+                      .padStart(2, "0")}:${scheduleSettings.pmMinutes
+                      .toString()
+                      .padStart(2, "0")}`}
+                    onChange={(e) => {
+                      const [hours, minutes] = e.target.value
+                        .split(":")
+                        .map((num) => parseInt(num) || 0);
+                      handleScheduleChange("pmHours", hours);
+                      handleScheduleChange("pmMinutes", minutes);
+                    }}
+                    disabled={!scheduleSettings.pmEnabled}
+                    sx={{ maxWidth: 200 }}
+                    InputLabelProps={{
+                      shrink: true,
+                    }}
+                  />
 
                   <TextField
                     label="Target Temperature"
