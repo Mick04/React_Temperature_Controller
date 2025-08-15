@@ -9,7 +9,7 @@ import SystemStatusCard from "./SystemStatusCard";
 import TemperatureChart from "./TemperatureChart";
 import FirebaseDebugger from "./FirebaseDebugger";
 import { useTemperature } from "../contexts/TemperatureContext";
-import { generateSimpleSystemData } from "../utils/esp32Simulator";
+// import { generateSimpleSystemData } from "../utils/esp32Simulator"; // Disabled - uncomment to enable simulation
 
 const Dashboard: React.FC = () => {
   const { currentTemperatures, mqttConnected, heaterStatus } = useTemperature();
@@ -28,7 +28,9 @@ const Dashboard: React.FC = () => {
         // Set up real-time listeners
         setupRealtimeListeners();
 
-        // Temporarily simulate ESP32 system data for debugging
+        // ESP32 Simulator - DISABLED
+        // Uncomment the code below to enable simulation when ESP32 is not connected
+        /*
         const simulateESP32Data = () => {
           const systemData = generateSimpleSystemData();
           console.log("Setting simulated ESP32 system data:", systemData);
@@ -43,6 +45,7 @@ const Dashboard: React.FC = () => {
 
         // Cleanup interval on unmount
         return () => clearInterval(intervalId);
+        */
       } catch (error) {
         console.error("Firebase authentication failed:", error);
       } finally {
