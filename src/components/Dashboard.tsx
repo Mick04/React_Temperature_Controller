@@ -1,10 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { Box, Container, Typography } from "@mui/material";
 import { database, signInAnonymously_Custom } from "../firebase";
-import { ref, onValue, set } from "firebase/database";
+import { ref, onValue } from "firebase/database";
 import type { ControlSettings, SystemStatus } from "../types";
 import TemperatureDisplay from "./TemperatureDisplay";
-import HeaterControl from "./HeaterControl";
 import SystemStatusCard from "./SystemStatusCard";
 import TemperatureChart from "./TemperatureChart";
 import FirebaseDebugger from "./FirebaseDebugger";
@@ -151,16 +150,6 @@ const Dashboard: React.FC = () => {
         setSystemStatus(defaultSystemStatus);
       }
     });
-  };
-
-  // Control updates
-  const updateControlSettings = async (settings: ControlSettings) => {
-    try {
-      await set(ref(database, "control"), settings);
-      setControlSettings(settings);
-    } catch (error) {
-      console.error("Error updating control settings:", error);
-    }
   };
 
   if (loading) {
