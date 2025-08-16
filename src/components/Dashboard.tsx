@@ -92,6 +92,12 @@ const Dashboard: React.FC = () => {
         console.log("Available system data fields:", Object.keys(data));
         console.log("data.uptime:", data.uptime, "type:", typeof data.uptime);
         console.log("data.rssi:", data.rssi, "type:", typeof data.rssi);
+        console.log(
+          "mqttSystemStatus.rssi:",
+          mqttSystemStatus.rssi,
+          "type:",
+          typeof mqttSystemStatus.rssi
+        );
         console.log("data.status:", data.status);
         console.log("data.wifi:", data.wifi);
         console.log("data.firebase:", data.firebase);
@@ -118,10 +124,21 @@ const Dashboard: React.FC = () => {
               ? data.uptime
               : 0,
           rssi:
-            mqttSystemStatus.rssi > -100
-              ? mqttSystemStatus.rssi
-              : data.rssi !== undefined && data.rssi !== null
-              ? data.rssi
+            // Prefer Firebase data if available and valid, otherwise use MQTT data
+            data.rssi !== undefined && data.rssi !== null && data.rssi > -100
+              ? (() => {
+                  console.log("🔄 Using Firebase RSSI:", data.rssi, "dBm");
+                  return data.rssi;
+                })()
+              : mqttSystemStatus.rssi > -100
+              ? (() => {
+                  console.log(
+                    "🔄 Using MQTT RSSI:",
+                    mqttSystemStatus.rssi,
+                    "dBm"
+                  );
+                  return mqttSystemStatus.rssi;
+                })()
               : -100,
           status: data.status || "offline",
           last_update: data.last_update || data.lastUpdate || Date.now() / 1000,
@@ -131,6 +148,17 @@ const Dashboard: React.FC = () => {
         console.log(
           "System status transformed and updated:",
           transformedSystemStatus
+        );
+        console.log(
+          "🔍 Final RSSI value used:",
+          transformedSystemStatus.rssi,
+          "dBm"
+        );
+        console.log(
+          "📊 Data sources - Firebase RSSI:",
+          data.rssi,
+          "MQTT RSSI:",
+          mqttSystemStatus.rssi
         );
       } else {
         console.log("No system data found at path: /system");

@@ -170,6 +170,7 @@ class MQTTManager {
         // Handle individual system status updates
         if (topic.includes("/rssi")) {
           const rssi = parseInt(message);
+          console.log(`📡 MQTT RSSI update: ${rssi} dBm (topic: ${topic})`);
           if (!isNaN(rssi)) {
             this.callbacks.onSystemStatusUpdate?.({ rssi });
           }
