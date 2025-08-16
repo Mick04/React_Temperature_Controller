@@ -1,4 +1,10 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useRef,
+} from "react";
 import type { ReactNode } from "react";
 import MQTTManager from "../services/MQTTManager";
 import { mqttConfig } from "../config/mqtt";
@@ -23,6 +29,13 @@ interface TemperatureContextType {
     wifi: string;
     lastUpdate: number;
   };
+  // MQTT functions
+  publishSchedule: (schedule: any) => boolean;
+  testMqttConnection: () => Promise<{
+    success: boolean;
+    error?: string;
+    details?: any;
+  }>;
 }
 
 const TemperatureContext = createContext<TemperatureContextType | undefined>(
@@ -52,9 +65,12 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
   const [systemStatus, setSystemStatus] = useState({
     rssi: -100,
     uptime: 0,
-    wifi: "UNKNOWN",
-    lastUpdate: Date.now() / 1000,
+    wifi: "Unknown",
+    lastUpdate: 0,
   });
+
+  // Store MQTT manager reference for sharing
+  const mqttManagerRef = useRef<MQTTManager | null>(null);
 
   // Load initial temperature values from Firebase
   const loadInitialTemperatures = async () => {
@@ -164,6 +180,7 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
     loadInitialTemperatures();
 
     const mqtt = new MQTTManager(mqttConfig);
+    mqttManagerRef.current = mqtt; // Store reference for sharing
 
     mqtt.connect({
       onConnectionStatus: (connected) => {
@@ -236,6 +253,30 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
     // For now, we'll keep it static but this can be extended
   }, []);
 
+  // MQTT helper functions for Settings page
+  const publishSchedule = (schedule: any): boolean => {
+    if (!mqttManagerRef.current || !mqttConnected) {
+      console.warn("MQTT not connected, cannot publish schedule");
+      return false;
+    }
+    return mqttManagerRef.current.publishSchedule(schedule);
+  };
+
+  const testMqttConnection = async (): Promise<{
+    success: boolean;
+    error?: string;
+    details?: any;
+  }> => {
+    if (!mqttManagerRef.current) {
+      return {
+        success: false,
+        error: "MQTT manager not initialized",
+        details: { timestamp: new Date().toISOString() },
+      };
+    }
+    return mqttManagerRef.current.testConnection();
+  };
+
   const value: TemperatureContextType = {
     currentTemperatures,
     historicalData,
@@ -243,6 +284,8 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
     heaterStatus,
     targetTemperature,
     systemStatus,
+    publishSchedule,
+    testMqttConnection,
   };
 
   return (

@@ -26,8 +26,7 @@ import {
 import { database, auth, signInAnonymously_Custom } from "../firebase";
 import { ref, set, get } from "firebase/database";
 import { onAuthStateChanged, type User } from "firebase/auth";
-import MQTTManager from "../services/MQTTManager";
-import { mqttConfig } from "../config/mqtt";
+import { useTemperature } from "../contexts/TemperatureContext";
 import type { ScheduleSettings } from "../types";
 
 interface SettingsPageProps {
@@ -35,6 +34,10 @@ interface SettingsPageProps {
 }
 
 const SettingsPage: React.FC<SettingsPageProps> = () => {
+  // Use shared MQTT connection from context
+  const { mqttConnected, publishSchedule, testMqttConnection } =
+    useTemperature();
+
   const [scheduleSettings, setScheduleSettings] = useState<ScheduleSettings>({
     amEnabled: false,
     amHours: 6,
@@ -56,8 +59,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
   const [workingPath, setWorkingPath] = useState<string | null>(null);
-  const [mqttManager, setMqttManager] = useState<MQTTManager | null>(null);
-  const [mqttConnected, setMqttConnected] = useState(false);
+  // REMOVED: local MQTT state - now using shared context
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{
     success: boolean;
@@ -89,30 +91,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     return () => unsubscribe();
   }, [isAuthenticating]);
 
-  // Initialize MQTT connection
-  useEffect(() => {
-    console.log("🔌 Initializing MQTT connection for settings...");
-    const mqtt = new MQTTManager(mqttConfig);
-
-    mqtt.connect({
-      onConnectionStatus: (connected) => {
-        console.log("MQTT connection status in settings:", connected);
-        setMqttConnected(connected);
-      },
-      onError: (error) => {
-        console.error("MQTT connection error in settings:", error);
-        setMqttConnected(false);
-      },
-    });
-
-    setMqttManager(mqtt);
-
-    // Cleanup on unmount
-    return () => {
-      console.log("🔌 Disconnecting MQTT from settings");
-      mqtt.disconnect();
-    };
-  }, []);
+  // REMOVED: MQTT initialization - now using shared context connection
 
   // Load settings on mount
   useEffect(() => {
@@ -202,12 +181,12 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     try {
       console.log("🔌 Publishing schedule to MQTT...", schedule);
 
-      if (!mqttManager || !mqttConnected) {
+      if (!mqttConnected) {
         console.warn("⚠️ MQTT not connected, skipping publish");
         return false;
       }
 
-      const success = mqttManager.publishSchedule(schedule);
+      const success = publishSchedule(schedule);
 
       if (success) {
         console.log("✅ Schedule published to MQTT successfully");
@@ -222,14 +201,12 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     }
   };
 
-  const testMqttConnection = async () => {
-    if (!mqttManager) return;
-
+  const testMqttConnectionLocal = async () => {
     setIsTesting(true);
     setTestResult(null);
 
     try {
-      const result = await mqttManager.testConnection();
+      const result = await testMqttConnection();
       setTestResult(result);
     } catch (error) {
       setTestResult({
@@ -438,7 +415,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
             <Button
               variant="outlined"
               size="small"
-              onClick={testMqttConnection}
+              onClick={testMqttConnectionLocal}
               disabled={isTesting}
               startIcon={isTesting ? <CircularProgress size={16} /> : null}
             >

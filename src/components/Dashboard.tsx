@@ -132,8 +132,31 @@ const Dashboard: React.FC = () => {
               ? data.uptime
               : 0,
           rssi:
-            // TEMPORARY: Force correct RSSI for debugging
-            -62,
+            // Always prefer Firebase data when available, since MQTT may be stale
+            data.rssi !== undefined && data.rssi !== null
+              ? (() => {
+                  console.log(
+                    "🔄 Using Firebase RSSI:",
+                    data.rssi,
+                    "dBm (Firebase data available)"
+                  );
+                  return data.rssi;
+                })()
+              : mqttSystemStatus.rssi > -100
+              ? (() => {
+                  console.log(
+                    "🔄 Using MQTT RSSI:",
+                    mqttSystemStatus.rssi,
+                    "dBm (Firebase data not available)"
+                  );
+                  return mqttSystemStatus.rssi;
+                })()
+              : (() => {
+                  console.log(
+                    "🔄 Using default RSSI: -100 dBm (no data available)"
+                  );
+                  return -100;
+                })(),
           status: data.status || "offline",
           last_update: data.last_update || data.lastUpdate || Date.now() / 1000,
         };
@@ -179,7 +202,10 @@ const Dashboard: React.FC = () => {
             : "MQTT_STATE_DISCONNECTED",
           heaterStatus: heaterStatus,
           uptime: mqttSystemStatus.uptime || 0,
-          rssi: -62, // TEMPORARY: Force correct RSSI for debugging
+          rssi:
+            mqttConnected && mqttSystemStatus.rssi > -100
+              ? mqttSystemStatus.rssi
+              : -100, // Only use MQTT RSSI if MQTT is actually connected
           status: "offline",
           last_update: Date.now() / 1000,
         };
