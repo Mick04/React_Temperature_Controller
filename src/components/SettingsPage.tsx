@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from "react";
 import {
   Box,
-  Container,
   Typography,
   Card,
   CardContent,
@@ -351,7 +350,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
   };
 
   return (
-    <Container maxWidth={false} sx={{ py: 3, px: 3 }}>
+    <Box sx={{ width: '100vw', minHeight: '100vh', px: 2, py: 3 }}>
       <Typography variant="h4" component="h1" gutterBottom>
         <Settings sx={{ mr: 2, verticalAlign: "middle" }} />
         Settings
@@ -638,7 +637,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
           </CardContent>
         </Card>
       </Box>
-    </Container>
+    </Box>
   );
 };
 
