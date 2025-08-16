@@ -351,7 +351,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
   };
 
   return (
-    <Container maxWidth="lg" sx={{ py: 3 }}>
+    <Container maxWidth={false} sx={{ py: 3, px: 3 }}>
       <Typography variant="h4" component="h1" gutterBottom>
         <Settings sx={{ mr: 2, verticalAlign: "middle" }} />
         Settings

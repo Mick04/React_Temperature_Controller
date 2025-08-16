@@ -40,7 +40,7 @@ const GreenChartPage: React.FC = () => {
     greenTemps.length;
 
   return (
-    <Container maxWidth="xl" sx={{ py: 3 }}>
+    <Container maxWidth={false} sx={{ py: 3, px: 3 }}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
         {/* Header */}
         <Box

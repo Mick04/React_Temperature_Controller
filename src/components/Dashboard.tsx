@@ -166,7 +166,7 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <Container maxWidth="xl" sx={{ mt: 2, mb: 2 }}>
+    <Container maxWidth={false} sx={{ mt: 2, mb: 2, px: 3 }}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
         {/* Temperature Display */}
         <Box>
