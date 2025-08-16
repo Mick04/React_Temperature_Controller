@@ -65,7 +65,7 @@ const MainApp: React.FC<MainAppProps> = ({ onLogout }) => {
         id={`tabpanel-${index}`}
         aria-labelledby={`tab-${index}`}
       >
-        {value === index && <Box sx={{ p: 0, width: '100%' }}>{children}</Box>}
+        {value === index && <Box sx={{ p: 0 }}>{children}</Box>}
       </div>
     );
   };
@@ -73,7 +73,7 @@ const MainApp: React.FC<MainAppProps> = ({ onLogout }) => {
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
-      <Box sx={{ flexGrow: 1, width: '100vw', overflow: 'hidden' }}>
+      <Box sx={{ flexGrow: 1 }}>
         <AppBar position="static">
           <Toolbar>
             <Thermostat sx={{ mr: 2 }} />

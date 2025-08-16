@@ -1,5 +1,5 @@
 import React from "react";
-import { Paper, Typography, Box } from "@mui/material";
+import { Paper, Typography, Box, Container } from "@mui/material";
 import { LineChart } from "@mui/x-charts/LineChart";
 import { ThermostatOutlined, Wifi, WifiOff } from "@mui/icons-material";
 import { useTemperature } from "../contexts/TemperatureContext";
@@ -40,7 +40,7 @@ const GreenChartPage: React.FC = () => {
     greenTemps.length;
 
   return (
-    <Box sx={{ width: '100vw', minHeight: '100vh', px: 2, py: 3 }}>
+    <Container maxWidth="xl" sx={{ py: 3 }}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
         {/* Header */}
         <Box
@@ -185,7 +185,7 @@ const GreenChartPage: React.FC = () => {
           </Box>
         </Paper>
       </Box>
-    </Box>
+    </Container>
   );
 };
 

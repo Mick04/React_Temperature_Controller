@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Box, Typography } from "@mui/material";
+import { Box, Container, Typography } from "@mui/material";
 import { database, signInAnonymously_Custom } from "../firebase";
 import { ref, onValue } from "firebase/database";
 import type { ControlSettings, SystemStatus } from "../types";
@@ -166,7 +166,7 @@ const Dashboard: React.FC = () => {
   }
 
   return (
-    <Box sx={{ width: '100vw', minHeight: '100vh', px: 2, py: 2 }}>
+    <Container maxWidth="xl" sx={{ mt: 2, mb: 2 }}>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 3 }}>
         {/* Temperature Display */}
         <Box>
@@ -222,7 +222,7 @@ const Dashboard: React.FC = () => {
           <MQTTDebugger />
         </Box>
       </Box>
-    </Box>
+    </Container>
   );
 };
 
