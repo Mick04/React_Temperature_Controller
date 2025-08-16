@@ -32,6 +32,17 @@ class MQTTManager {
     this.callbacks = callbacks;
     this.connectionAttempts++;
 
+    console.log("🔌 MQTT Connection Attempt Details:");
+    console.log("  📍 Broker URL:", this.config.brokerUrl);
+    console.log("  👤 Username:", this.config.username || "Not provided");
+    console.log(
+      "  🔑 Password:",
+      this.config.password ? "✅ Provided" : "❌ Not provided"
+    );
+    console.log("  🆔 Client ID:", this.config.clientId || "Auto-generated");
+    console.log("  📊 Attempt #:", this.connectionAttempts);
+    console.log("  ⏰ Timestamp:", new Date().toISOString());
+
     const options: mqtt.IClientOptions = {
       clientId:
         this.config.clientId ||
@@ -46,9 +57,10 @@ class MQTTManager {
     };
 
     try {
-      console.log("🔌 Attempting MQTT connection to:", this.config.brokerUrl);
-      console.log("🔐 Using credentials:", this.config.username ? "✅" : "❌");
-      console.log("📊 Connection attempt:", this.connectionAttempts);
+      console.log("� Initializing MQTT client with options:", {
+        ...options,
+        password: options.password ? "***HIDDEN***" : undefined,
+      });
 
       this.client = mqtt.connect(this.config.brokerUrl, options);
 
@@ -72,6 +84,11 @@ class MQTTManager {
           message: error.message,
           name: error.name,
           connectionAttempt: this.connectionAttempts,
+          brokerUrl: this.config.brokerUrl,
+          username: this.config.username,
+          hasPassword: !!this.config.password,
+          clientId: options.clientId,
+          timestamp: new Date().toISOString(),
         });
 
         this.isConnected = false;
@@ -314,6 +331,72 @@ class MQTTManager {
 
   getConnectionStatus(): boolean {
     return this.isConnected;
+  }
+
+  // Test connection with detailed logging
+  async testConnection(): Promise<{
+    success: boolean;
+    error?: string;
+    details: any;
+  }> {
+    return new Promise((resolve) => {
+      console.log("🧪 Testing MQTT connection...");
+
+      const testClient = mqtt.connect(this.config.brokerUrl, {
+        clientId: `test_${Math.random().toString(16).substr(2, 8)}`,
+        username: this.config.username,
+        password: this.config.password,
+        connectTimeout: 10000,
+        keepalive: 30,
+        clean: true,
+        rejectUnauthorized: true,
+      });
+
+      const timeout = setTimeout(() => {
+        testClient.end(true);
+        resolve({
+          success: false,
+          error: "Connection timeout after 10 seconds",
+          details: {
+            brokerUrl: this.config.brokerUrl,
+            username: this.config.username,
+            hasPassword: !!this.config.password,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      }, 10000);
+
+      testClient.on("connect", () => {
+        clearTimeout(timeout);
+        console.log("✅ Test connection successful!");
+        testClient.end();
+        resolve({
+          success: true,
+          details: {
+            brokerUrl: this.config.brokerUrl,
+            username: this.config.username,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      });
+
+      testClient.on("error", (error) => {
+        clearTimeout(timeout);
+        console.error("❌ Test connection failed:", error);
+        testClient.end(true);
+        resolve({
+          success: false,
+          error: error.message,
+          details: {
+            brokerUrl: this.config.brokerUrl,
+            username: this.config.username,
+            hasPassword: !!this.config.password,
+            errorName: error.name,
+            timestamp: new Date().toISOString(),
+          },
+        });
+      });
+    });
   }
 }
 

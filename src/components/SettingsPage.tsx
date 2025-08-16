@@ -13,6 +13,7 @@ import {
   Paper,
   InputAdornment,
   Chip,
+  CircularProgress,
 } from "@mui/material";
 import {
   Save,
@@ -57,6 +58,12 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
   const [workingPath, setWorkingPath] = useState<string | null>(null);
   const [mqttManager, setMqttManager] = useState<MQTTManager | null>(null);
   const [mqttConnected, setMqttConnected] = useState(false);
+  const [isTesting, setIsTesting] = useState(false);
+  const [testResult, setTestResult] = useState<{
+    success: boolean;
+    error?: string;
+    details?: any;
+  } | null>(null);
 
   // Authentication effect
   useEffect(() => {
@@ -212,6 +219,28 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
     } catch (error) {
       console.error("❌ MQTT publish error:", error);
       return false;
+    }
+  };
+
+  const testMqttConnection = async () => {
+    if (!mqttManager) return;
+
+    setIsTesting(true);
+    setTestResult(null);
+
+    try {
+      const result = await mqttManager.testConnection();
+      setTestResult(result);
+    } catch (error) {
+      setTestResult({
+        success: false,
+        error: "Test failed with exception",
+        details: {
+          error: error instanceof Error ? error.message : String(error),
+        },
+      });
+    } finally {
+      setIsTesting(false);
     }
   };
 
@@ -400,6 +429,41 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
       ) : (
         <Alert severity="warning" sx={{ mb: 3 }}>
           ⚠️ MQTT Disconnected - Settings will only be saved to Firebase
+          <br />
+          <small>
+            Check browser console for connection details. Common issues: Network
+            firewall, incorrect credentials, or broker unavailable.
+          </small>
+          <Box sx={{ mt: 2 }}>
+            <Button
+              variant="outlined"
+              size="small"
+              onClick={testMqttConnection}
+              disabled={isTesting}
+              startIcon={isTesting ? <CircularProgress size={16} /> : null}
+            >
+              {isTesting ? "Testing..." : "Test MQTT Connection"}
+            </Button>
+          </Box>
+          {testResult && (
+            <Alert
+              severity={testResult.success ? "success" : "error"}
+              sx={{ mt: 2 }}
+            >
+              {testResult.success ? (
+                "✅ Connection test successful!"
+              ) : (
+                <>
+                  ❌ Connection test failed: {testResult.error}
+                  {testResult.details && (
+                    <pre style={{ fontSize: "0.8em", marginTop: "8px" }}>
+                      {JSON.stringify(testResult.details, null, 2)}
+                    </pre>
+                  )}
+                </>
+              )}
+            </Alert>
+          )}
         </Alert>
       )}
 
