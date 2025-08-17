@@ -82,16 +82,35 @@ const Dashboard: React.FC = () => {
     onValue(systemRef, (snapshot) => {
       const data = snapshot.val();
       console.log("🔥 Firebase system data received:", data);
-      console.log("🔥 Raw Firebase system data structure:", JSON.stringify(data, null, 2));
+      console.log(
+        "🔥 Raw Firebase system data structure:",
+        JSON.stringify(data, null, 2)
+      );
 
       if (data) {
         // Check what fields are actually available
         console.log("🔍 DASHBOARD RSSI DEBUG:");
-        console.log("  Available Firebase system data fields:", Object.keys(data));
-        console.log("  Firebase data.rssi:", data.rssi, "type:", typeof data.rssi);
-        console.log("  MQTT mqttSystemStatus.rssi:", mqttSystemStatus.rssi, "type:", typeof mqttSystemStatus.rssi);
+        console.log(
+          "  Available Firebase system data fields:",
+          Object.keys(data)
+        );
+        console.log(
+          "  Firebase data.rssi:",
+          data.rssi,
+          "type:",
+          typeof data.rssi
+        );
+        console.log(
+          "  MQTT mqttSystemStatus.rssi:",
+          mqttSystemStatus.rssi,
+          "type:",
+          typeof mqttSystemStatus.rssi
+        );
         console.log("  MQTT connected:", mqttConnected);
-        console.log("  Firebase RSSI available:", data.rssi !== undefined && data.rssi !== null);
+        console.log(
+          "  Firebase RSSI available:",
+          data.rssi !== undefined && data.rssi !== null
+        );
         console.log("  MQTT RSSI valid:", mqttSystemStatus.rssi > -100);
         console.log("🔍 END DASHBOARD RSSI DEBUG");
         console.log("data.status:", data.status);
@@ -123,12 +142,21 @@ const Dashboard: React.FC = () => {
             // Always prefer Firebase data when available, since MQTT may be stale
             data.rssi !== undefined && data.rssi !== null
               ? (() => {
-                  console.log("🔄 Using Firebase RSSI:", data.rssi, "dBm (Firebase data available)");
+                  console.log(
+                    "🔄 Using Firebase RSSI:",
+                    data.rssi,
+                    "dBm (Firebase data available)"
+                  );
                   return data.rssi;
                 })()
               : (() => {
-                  console.log("� No Firebase RSSI available, MQTT has stale data:", mqttSystemStatus.rssi);
-                  console.log("🔄 Using default -62 dBm since MQTT is working (sensor updates prove connection)");
+                  console.log(
+                    "� No Firebase RSSI available, MQTT has stale data:",
+                    mqttSystemStatus.rssi
+                  );
+                  console.log(
+                    "🔄 Using default -62 dBm since MQTT is working (sensor updates prove connection)"
+                  );
                   return -62; // Use reasonable default since MQTT is working
                 })(),
           status: data.status || "offline",
