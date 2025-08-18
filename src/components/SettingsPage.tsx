@@ -20,7 +20,6 @@ import {
   Schedule,
   AccessTime,
   DeviceThermostat,
-  Thermostat,
   Settings,
 } from "@mui/icons-material";
 import { database, auth, signInAnonymously_Custom } from "../firebase";
@@ -40,14 +39,11 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
 
   const [scheduleSettings, setScheduleSettings] = useState<ScheduleSettings>({
     amEnabled: false,
-    amHours: 6,
-    amMinutes: 0,
+    amScheduledTime: "07:00",
     amTemperature: 22,
     pmEnabled: false,
-    pmHours: 18,
-    pmMinutes: 0,
+    pmScheduledTime: "19:00",
     pmTemperature: 20,
-    defaultTemperature: 21,
   });
 
   const [saveStatus, setSaveStatus] = useState<
@@ -239,19 +235,10 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
       console.log("💾 Attempting to save to Firebase:", scheduleSettings);
       console.log("🔐 Current user:", user?.uid || "Not authenticated");
 
-      // Enhance schedule settings with scheduledTime for Firebase
+      // Schedule settings are already in the correct format with scheduledTime
       const enhancedScheduleSettings = {
         ...scheduleSettings,
-        amScheduledTime: `${scheduleSettings.amHours
-          .toString()
-          .padStart(2, "0")}:${scheduleSettings.amMinutes
-          .toString()
-          .padStart(2, "0")}`,
-        pmScheduledTime: `${scheduleSettings.pmHours
-          .toString()
-          .padStart(2, "0")}:${scheduleSettings.pmMinutes
-          .toString()
-          .padStart(2, "0")}`,
+        // No need to convert - amScheduledTime and pmScheduledTime are already strings
       };
 
       console.log(
@@ -348,12 +335,6 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
         setSaveStatus("idle");
       }, 10000);
     }
-  };
-
-  const formatTime = (hours: number, minutes: number) => {
-    return `${hours.toString().padStart(2, "0")}:${minutes
-      .toString()
-      .padStart(2, "0")}`;
   };
 
   return (
@@ -485,17 +466,9 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                   <TextField
                     label="Schedule Time (24-hour format)"
                     type="time"
-                    value={`${scheduleSettings.amHours
-                      .toString()
-                      .padStart(2, "0")}:${scheduleSettings.amMinutes
-                      .toString()
-                      .padStart(2, "0")}`}
+                    value={scheduleSettings.amScheduledTime}
                     onChange={(e) => {
-                      const [hours, minutes] = e.target.value
-                        .split(":")
-                        .map((num) => parseInt(num) || 0);
-                      handleScheduleChange("amHours", hours);
-                      handleScheduleChange("amMinutes", minutes);
+                      handleScheduleChange("amScheduledTime", e.target.value);
                     }}
                     disabled={!scheduleSettings.amEnabled}
                     sx={{ maxWidth: 200 }}
@@ -527,10 +500,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                   {scheduleSettings.amEnabled && (
                     <Chip
                       icon={<DeviceThermostat />}
-                      label={`${formatTime(
-                        scheduleSettings.amHours,
-                        scheduleSettings.amMinutes
-                      )} → ${scheduleSettings.amTemperature}°C`}
+                      label={`${scheduleSettings.amScheduledTime} → ${scheduleSettings.amTemperature}°C`}
                       color="primary"
                       variant="outlined"
                     />
@@ -569,17 +539,9 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                   <TextField
                     label="Schedule Time (24-hour format)"
                     type="time"
-                    value={`${scheduleSettings.pmHours
-                      .toString()
-                      .padStart(2, "0")}:${scheduleSettings.pmMinutes
-                      .toString()
-                      .padStart(2, "0")}`}
+                    value={scheduleSettings.pmScheduledTime}
                     onChange={(e) => {
-                      const [hours, minutes] = e.target.value
-                        .split(":")
-                        .map((num) => parseInt(num) || 0);
-                      handleScheduleChange("pmHours", hours);
-                      handleScheduleChange("pmMinutes", minutes);
+                      handleScheduleChange("pmScheduledTime", e.target.value);
                     }}
                     disabled={!scheduleSettings.pmEnabled}
                     sx={{ maxWidth: 200 }}
@@ -611,49 +573,12 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
                   {scheduleSettings.pmEnabled && (
                     <Chip
                       icon={<DeviceThermostat />}
-                      label={`${formatTime(
-                        scheduleSettings.pmHours,
-                        scheduleSettings.pmMinutes
-                      )} → ${scheduleSettings.pmTemperature}°C`}
+                      label={`${scheduleSettings.pmScheduledTime} → ${scheduleSettings.pmTemperature}°C`}
                       color="warning"
                       variant="outlined"
                     />
                   )}
                 </Box>
-              </Paper>
-
-              {/* Default Temperature */}
-              <Paper sx={{ p: 3, backgroundColor: "#f5f5f5" }}>
-                <Typography variant="h6" gutterBottom>
-                  <Thermostat sx={{ mr: 1, verticalAlign: "middle" }} />
-                  Default Temperature
-                </Typography>
-                <Typography
-                  variant="body2"
-                  color="text.secondary"
-                  sx={{ mb: 2 }}
-                >
-                  Temperature used when no schedule is active
-                </Typography>
-
-                <TextField
-                  label="Default Target Temperature"
-                  type="number"
-                  value={scheduleSettings.defaultTemperature}
-                  onChange={(e) =>
-                    handleScheduleChange(
-                      "defaultTemperature",
-                      parseFloat(e.target.value) || 0
-                    )
-                  }
-                  inputProps={{ min: 5, max: 50, step: 0.5 }}
-                  InputProps={{
-                    endAdornment: (
-                      <InputAdornment position="end">°C</InputAdornment>
-                    ),
-                  }}
-                  sx={{ maxWidth: 300 }}
-                />
               </Paper>
             </Box>
 

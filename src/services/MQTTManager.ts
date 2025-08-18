@@ -1,5 +1,6 @@
 // MQTT WebSocket client for real-time ESP32 communication
 import mqtt from "mqtt";
+import type { ScheduleSettings } from "../types";
 
 export interface MQTTConfig {
   brokerUrl: string;
@@ -227,28 +228,32 @@ class MQTTManager {
   }
 
   // Schedule control functions
-  publishSchedule(schedule: any): boolean {
+  publishSchedule(schedule: ScheduleSettings): boolean {
+    // Parse time strings to get hours and minutes for ESP32 compatibility
+    const parseTime = (timeString: string) => {
+      const [hours, minutes] = timeString.split(":").map(Number);
+      return { hours, minutes };
+    };
+
+    const amTime = parseTime(schedule.amScheduledTime);
+    const pmTime = parseTime(schedule.pmScheduledTime);
+
     // Transform React app format to ESP32 expected format
     const esp32ScheduleFormat = {
       am: {
         enabled: schedule.amEnabled,
-        hours: schedule.amHours,
-        minutes: schedule.amMinutes,
+        hours: amTime.hours,
+        minutes: amTime.minutes,
         temperature: schedule.amTemperature,
-        scheduledTime: `${schedule.amHours
-          .toString()
-          .padStart(2, "0")}:${schedule.amMinutes.toString().padStart(2, "0")}`,
+        scheduledTime: schedule.amScheduledTime,
       },
       pm: {
         enabled: schedule.pmEnabled,
-        hours: schedule.pmHours,
-        minutes: schedule.pmMinutes,
+        hours: pmTime.hours,
+        minutes: pmTime.minutes,
         temperature: schedule.pmTemperature,
-        scheduledTime: `${schedule.pmHours
-          .toString()
-          .padStart(2, "0")}:${schedule.pmMinutes.toString().padStart(2, "0")}`,
+        scheduledTime: schedule.pmScheduledTime,
       },
-      default_temperature: schedule.defaultTemperature,
     };
 
     console.log("📤 Publishing ESP32 schedule format:", esp32ScheduleFormat);
@@ -263,15 +268,10 @@ class MQTTManager {
       "esp32/control/schedule/am/enabled",
       schedule.amEnabled.toString()
     );
-    this.publish(
-      "esp32/control/schedule/am/time",
-      `${schedule.amHours}:${schedule.amMinutes.toString().padStart(2, "0")}`
-    );
+    this.publish("esp32/control/schedule/am/time", schedule.amScheduledTime);
     this.publish(
       "esp32/control/schedule/am/scheduledTime",
-      `${schedule.amHours.toString().padStart(2, "0")}:${schedule.amMinutes
-        .toString()
-        .padStart(2, "0")}`
+      schedule.amScheduledTime
     );
     this.publish(
       "esp32/control/schedule/am/temperature",
@@ -282,30 +282,14 @@ class MQTTManager {
       "esp32/control/schedule/pm/enabled",
       schedule.pmEnabled.toString()
     );
-    this.publish(
-      "esp32/control/schedule/pm/time",
-      `${schedule.pmHours}:${schedule.pmMinutes.toString().padStart(2, "0")}`
-    );
+    this.publish("esp32/control/schedule/pm/time", schedule.pmScheduledTime);
     this.publish(
       "esp32/control/schedule/pm/scheduledTime",
-      `${schedule.pmHours.toString().padStart(2, "0")}:${schedule.pmMinutes
-        .toString()
-        .padStart(2, "0")}`
+      schedule.pmScheduledTime
     );
     this.publish(
       "esp32/control/schedule/pm/temperature",
       schedule.pmTemperature.toString()
-    );
-
-    this.publish(
-      "esp32/control/schedule/default",
-      schedule.defaultTemperature.toString()
-    );
-
-    // Also send the default temperature as default_temperature for ESP32 compatibility
-    this.publish(
-      "esp32/control/schedule/default_temperature",
-      schedule.defaultTemperature.toString()
     );
 
     // Set control mode to auto when schedule is enabled

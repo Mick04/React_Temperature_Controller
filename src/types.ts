@@ -25,14 +25,11 @@ export interface ControlSettings {
 
 export interface ScheduleSettings {
   amEnabled: boolean;
-  amHours: number;
-  amMinutes: number;
+  amScheduledTime: string; // Format: "HH:MM" (e.g., "07:00")
   amTemperature: number;
   pmEnabled: boolean;
-  pmHours: number;
-  pmMinutes: number;
+  pmScheduledTime: string; // Format: "HH:MM" (e.g., "19:30")
   pmTemperature: number;
-  defaultTemperature: number;
 }
 
 export interface SystemStatus {
