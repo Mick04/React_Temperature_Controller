@@ -9,7 +9,7 @@ import type { ReactNode } from "react";
 import MQTTManager from "../services/MQTTManager";
 import { mqttConfig } from "../config/mqtt";
 import { database, signInAnonymously_Custom } from "../firebase";
-import { ref, get } from "firebase/database";
+import { ref, get, onValue } from "firebase/database";
 import type { HistoricalDataPoint } from "../types";
 
 interface TemperatureContextType {
@@ -61,7 +61,7 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
   );
   const [mqttConnected, setMqttConnected] = useState(false);
   const [heaterStatus, setHeaterStatus] = useState(false);
-  const [targetTemperature] = useState(22);
+  const [targetTemperature, setTargetTemperature] = useState(22);
   const [systemStatus, setSystemStatus] = useState({
     rssi: -100,
     uptime: 0,
@@ -240,10 +240,31 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
       },
     });
 
+    // Listen for target temperature changes from Firebase
+    const targetTempRef = ref(database, "control/target_temperature");
+    const unsubscribeTargetTemp = onValue(targetTempRef, (snapshot) => {
+      const data = snapshot.val();
+      console.log("🎯 Firebase target temperature update:", data);
+      if (data !== null && data !== undefined && typeof data === "number") {
+        console.log(
+          `🎯 Setting target temperature to: ${data}°C (was: ${targetTemperature}°C)`
+        );
+        setTargetTemperature(data);
+      } else {
+        console.log(
+          "🎯 Invalid target temperature data:",
+          data,
+          "type:",
+          typeof data
+        );
+      }
+    });
+
     // Cleanup on unmount
     return () => {
       console.log("Disconnecting MQTT on cleanup");
       mqtt.disconnect();
+      unsubscribeTargetTemp();
     };
   }, []);
 

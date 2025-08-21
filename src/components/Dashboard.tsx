@@ -16,6 +16,7 @@ const Dashboard: React.FC = () => {
     currentTemperatures,
     mqttConnected,
     heaterStatus,
+    targetTemperature,
     systemStatus: mqttSystemStatus,
   } = useTemperature();
   const [controlSettings, setControlSettings] =
@@ -263,7 +264,7 @@ const Dashboard: React.FC = () => {
               timestamp: Date.now() / 1000,
               current: 0,
             }}
-            targetTemperature={controlSettings?.target_temperature || 20}
+            targetTemperature={targetTemperature}
           />
         </Box>
 

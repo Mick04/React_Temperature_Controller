@@ -12,6 +12,12 @@ const TemperatureDisplay: React.FC<TemperatureDisplayProps> = ({
   sensorData,
   targetTemperature,
 }) => {
+  // Debug logging for target temperature
+  console.log(
+    "🌡️ TemperatureDisplay received targetTemperature:",
+    targetTemperature
+  );
+
   const formatTemperature = (temp: number | undefined | null): string => {
     if (temp === null || temp === undefined || isNaN(temp)) {
       return "--°C";
