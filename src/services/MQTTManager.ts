@@ -84,7 +84,7 @@ class MQTTManager {
         // Extra debug: log when registering 'message' event
         console.log("[DEBUG] Registering MQTT 'message' event handler...");
       });
-      console.log(`[DEBUG] MQTT 'message' event fired for topic: ${topic}`);
+      //console.log(`[DEBUG] MQTT 'message' event fired for topic: ${topic}`);
 
       this.client.on("error", (error: Error) => {
         console.error("❌ MQTT connection error:", error);

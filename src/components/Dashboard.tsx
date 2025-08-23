@@ -99,7 +99,7 @@ const Dashboard: React.FC = () => {
       const data = snapshot.val();
       console.log("Firebase control data received:", data);
       if (data) {
-        setControlSettings(data);
+       // setControlSettings(data);
         console.log("Control settings updated:", data);
       } else {
         console.log("No control data found at path: /control");
