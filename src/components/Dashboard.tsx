@@ -19,7 +19,7 @@ const Dashboard: React.FC = () => {
     targetTemperature,
     systemStatus: mqttSystemStatus,
   } = useTemperature();
-  const [controlSettings, setControlSettings] =
+  //const [controlSettings, setControlSettings] =
     useState<ControlSettings | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
