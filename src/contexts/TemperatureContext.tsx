@@ -228,11 +228,17 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
       onSystemStatusUpdate: (statusData) => {
         console.log("MQTT system status update:", statusData);
         console.log("📡 MQTT RSSI received:", statusData.rssi, "dBm");
-        setSystemStatus((prev) => ({
-          ...prev,
-          ...statusData,
-          lastUpdate: Date.now() / 1000,
-        }));
+        console.log("📡 Previous systemStatus RSSI:", systemStatus.rssi, "dBm");
+
+        setSystemStatus((prev) => {
+          const updated = {
+            ...prev,
+            ...statusData,
+            lastUpdate: Date.now() / 1000,
+          };
+          console.log("📡 Setting new systemStatus RSSI:", updated.rssi, "dBm");
+          return updated;
+        });
       },
       onError: (error) => {
         console.error("MQTT error:", error);

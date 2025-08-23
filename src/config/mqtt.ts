@@ -21,7 +21,7 @@ export const mqttTopics = {
   temperatureRed: "esp32/sensors/temperature/red",
   temperatureBlue: "esp32/sensors/temperature/blue",
   temperatureGreen: "esp32/sensors/temperature/green",
-  heaterStatus: "esp32/sensors/heaterStatus",
+  heaterStatus: "esp32/system/heaterStatus",
 
   // Control topics
   targetTemperature: "esp32/control/targetTemperature",

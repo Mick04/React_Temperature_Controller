@@ -27,6 +27,13 @@ interface SystemStatusCardProps {
 const SystemStatusCard: React.FC<SystemStatusCardProps> = ({
   systemStatus,
 }) => {
+  // Debug logging for RSSI
+  console.log(
+    "🎯 SystemStatusCard received systemStatus.rssi:",
+    systemStatus?.rssi,
+    "dBm"
+  );
+
   // Handle null systemStatus
   if (!systemStatus) {
     return (

@@ -64,8 +64,12 @@ class MQTTManager {
       });
 
       this.client = mqtt.connect(this.config.brokerUrl, options);
+      // Extra debug: log before creating client
+      console.log("[DEBUG] About to create MQTT client...");
 
       this.client.on("connect", () => {
+        // Extra debug: log after client creation
+        console.log("[DEBUG] MQTT client created:", !!this.client);
         console.log("✅ MQTT connected successfully to", this.config.brokerUrl);
         this.isConnected = true;
         this.connectionAttempts = 0; // Reset on successful connection
@@ -77,7 +81,10 @@ class MQTTManager {
 
       this.client.on("message", (topic: string, message: Buffer) => {
         this.handleMessage(topic, message.toString());
+        // Extra debug: log when registering 'message' event
+        console.log("[DEBUG] Registering MQTT 'message' event handler...");
       });
+      console.log(`[DEBUG] MQTT 'message' event fired for topic: ${topic}`);
 
       this.client.on("error", (error: Error) => {
         console.error("❌ MQTT connection error:", error);
@@ -135,9 +142,9 @@ class MQTTManager {
       "esp32/sensors/temperature/red",
       "esp32/sensors/temperature/blue",
       "esp32/sensors/temperature/green",
-      "esp32/sensors/heaterStatus",
+      "esp32/system/heaterStatus",
       "esp32/system/status",
-      "esp32/system/rssi",
+      "esp32/system/wifi_rssi", // Changed from rssi to wifi_rssi to match ESP32
       "esp32/system/uptime",
       "esp32/system/wifi",
     ];
@@ -155,21 +162,31 @@ class MQTTManager {
 
   private handleMessage(topic: string, message: string) {
     try {
-      console.log(`📨 MQTT message on ${topic}:`, message);
+      console.log(`📨🔥🔥🔥🔥🔥🔥🔥🔥 MQTT message on ${topic}:`, message);
 
       if (topic.includes("/temperature/")) {
         const sensorType = topic.split("/").pop();
         const temperature = parseFloat(message);
+        console.log("🔥🔥🔥🔥🔥🔥🔥🔥 MQTT temperature update:"); // <-- Add this line
 
         if (!isNaN(temperature) && sensorType) {
           this.callbacks.onTemperatureUpdate?.(sensorType, temperature);
         }
       } else if (topic.includes("/heaterStatus")) {
-        const status = message.toLowerCase() === "true" || message === "1";
+        const status =
+          message.toLowerCase() === "true" ||
+          message === "1" ||
+          message.toUpperCase() === "ON"
+            ? true
+            : message.toUpperCase() === "OFF"
+            ? false
+            : false;
+
+        console.log("🔥🔥🔥🔥🔥🔥🔥🔥 MQTT heaterStatus update:"); // <-- Add this line
         this.callbacks.onHeaterStatusUpdate?.(status);
       } else if (topic.includes("/system/")) {
         // Handle individual system status updates
-        if (topic.includes("/rssi")) {
+        if (topic.includes("/rssi") || topic.includes("/wifi_rssi")) {
           const rssi = parseInt(message);
           console.log(`📡 MQTT RSSI update: ${rssi} dBm (topic: ${topic})`);
           if (!isNaN(rssi)) {
@@ -223,9 +240,9 @@ class MQTTManager {
     );
   }
 
-  setHeaterMode(mode: "auto" | "manual"): boolean {
-    return this.publish("esp32/control/mode", mode);
-  }
+  // setHeaterMode(mode: "auto" | "manual"): boolean {
+  //   return this.publish("esp32/control/mode", mode);
+  // }
 
   // Schedule control functions
   publishSchedule(schedule: ScheduleSettings): boolean {

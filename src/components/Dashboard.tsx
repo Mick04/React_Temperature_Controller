@@ -62,6 +62,34 @@ const Dashboard: React.FC = () => {
     initializeFirebase();
   }, []); // Empty dependency array to run only once
 
+  // Update system status when MQTT data changes
+  useEffect(() => {
+    if (systemStatus) {
+      console.log(
+        "🔄 Dashboard useEffect triggered - Current dashboard RSSI:",
+        systemStatus.rssi,
+        "dBm, New MQTT RSSI:",
+        mqttSystemStatus.rssi,
+        "dBm"
+      );
+      setSystemStatus((prev) =>
+        prev
+          ? {
+              ...prev,
+              rssi: mqttSystemStatus.rssi,
+              uptime:
+                mqttSystemStatus.uptime > 0
+                  ? mqttSystemStatus.uptime
+                  : prev.uptime,
+              mqtt: mqttConnected
+                ? "MQTT_STATE_CONNECTED"
+                : "MQTT_STATE_DISCONNECTED",
+            }
+          : null
+      );
+    }
+  }, [mqttSystemStatus.rssi, mqttSystemStatus.uptime, mqttConnected]); // Removed systemStatus to prevent infinite loop
+
   const setupRealtimeListeners = () => {
     // Only listen to control settings and system status, not sensor data (that comes from MQTT)
 
@@ -89,31 +117,6 @@ const Dashboard: React.FC = () => {
       );
 
       if (data) {
-        // Check what fields are actually available
-        console.log("🔍 DASHBOARD RSSI DEBUG:");
-        console.log(
-          "  Available Firebase system data fields:",
-          Object.keys(data)
-        );
-        console.log(
-          "  Firebase data.rssi:",
-          data.rssi,
-          "type:",
-          typeof data.rssi
-        );
-        console.log(
-          "  MQTT mqttSystemStatus.rssi:",
-          mqttSystemStatus.rssi,
-          "type:",
-          typeof mqttSystemStatus.rssi
-        );
-        console.log("  MQTT connected:", mqttConnected);
-        console.log(
-          "  Firebase RSSI available:",
-          data.rssi !== undefined && data.rssi !== null
-        );
-        console.log("  MQTT RSSI valid:", mqttSystemStatus.rssi > -100);
-        console.log("🔍 END DASHBOARD RSSI DEBUG");
         console.log("data.status:", data.status);
         console.log("data.wifi:", data.wifi);
         console.log("data.firebase:", data.firebase);
@@ -139,64 +142,21 @@ const Dashboard: React.FC = () => {
               : data.uptime !== undefined && data.uptime !== null
               ? data.uptime
               : 0,
-          rssi:
-            // Always prefer Firebase data when available, since MQTT may be stale
-            data.rssi !== undefined && data.rssi !== null
-              ? (() => {
-                  console.log(
-                    "🔄 Using Firebase RSSI:",
-                    data.rssi,
-                    "dBm (Firebase data available)"
-                  );
-                  return data.rssi;
-                })()
-              : (() => {
-                  console.log(
-                    "� No Firebase RSSI available, MQTT has stale data:",
-                    mqttSystemStatus.rssi
-                  );
-                  console.log(
-                    "🔄 Using default -62 dBm since MQTT is working (sensor updates prove connection)"
-                  );
-                  return -62; // Use reasonable default since MQTT is working
-                })(),
+          rssi: mqttSystemStatus.rssi, // Always use MQTT RSSI
           status: data.status || "offline",
           last_update: data.last_update || data.lastUpdate || Date.now() / 1000,
         };
 
         setSystemStatus(transformedSystemStatus);
         console.log(
-          "🟢 FIRST setSystemStatus called with RSSI:",
-          transformedSystemStatus.rssi
-        );
-        console.log(
-          "System status transformed and updated:",
-          transformedSystemStatus
-        );
-        console.log(
-          "🔍 Final RSSI value used:",
-          transformedSystemStatus.rssi,
-          "dBm"
-        );
-        console.log(
-          "📊 Data sources - Firebase RSSI:",
-          data.rssi,
-          "MQTT RSSI:",
-          mqttSystemStatus.rssi
-        );
-      } else {
-        console.log("No system data found at path: /system");
-        console.log(
-          "🚨 Using fallback system status - MQTT may have stale data"
-        );
-        console.log(
-          "📊 Fallback MQTT RSSI would be:",
+          "System status updated with MQTT RSSI:",
           mqttSystemStatus.rssi,
           "dBm"
         );
+      } else {
+        console.log("No system data found at path: /system");
 
         // Set a default system status when no data is available
-        // Don't use stale MQTT data for RSSI if it's unreliable
         const defaultSystemStatus: SystemStatus = {
           wifi: "ERROR",
           firebase: "FB_ERROR",
@@ -205,33 +165,16 @@ const Dashboard: React.FC = () => {
             : "MQTT_STATE_DISCONNECTED",
           heaterStatus: heaterStatus,
           uptime: mqttSystemStatus.uptime || 0,
-          rssi:
-            mqttConnected && mqttSystemStatus.rssi > -100
-              ? mqttSystemStatus.rssi
-              : -100, // Only use MQTT RSSI if MQTT is actually connected
+          rssi: mqttSystemStatus.rssi, // Use MQTT RSSI
           status: "offline",
           last_update: Date.now() / 1000,
         };
         setSystemStatus(defaultSystemStatus);
         console.log(
-          "🔴 SECOND setSystemStatus called with RSSI:",
-          defaultSystemStatus.rssi
-        );
-        console.log(
-          "🔄 Set fallback system status with RSSI:",
-          defaultSystemStatus.rssi,
+          "Set fallback system status with MQTT RSSI:",
+          mqttSystemStatus.rssi,
           "dBm"
         );
-      }
-    });
-
-    // ALSO listen to sensors path to see if system data is there
-    const sensorsRef = ref(database, "sensors");
-    onValue(sensorsRef, (snapshot) => {
-      const sensorsData = snapshot.val();
-      console.log("🌡️ Firebase sensors data received:", sensorsData);
-      if (sensorsData && sensorsData.rssi !== undefined) {
-        console.log("🎯 Found RSSI in sensors path:", sensorsData.rssi, "dBm");
       }
     });
   };
