@@ -191,14 +191,14 @@ const SystemStatusCard: React.FC<SystemStatusCardProps> = ({
           gap: 1,
         }}
       >
-        <Typography variant="body2" color="text.secondary">
+        {/* <Typography variant="body2" color="text.secondary">
           Uptime: {formatUptime(systemStatus.uptime)}
         </Typography>
         <Chip
           label={systemStatus.heaterStatus ? "HEATING" : "IDLE"}
           color={systemStatus.heaterStatus ? "warning" : "default"}
           size="small"
-        />
+        /> */}
       </Box>
 
       {/* Debug Section */}

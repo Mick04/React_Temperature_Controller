@@ -61,7 +61,7 @@ const TemperatureDisplay: React.FC<TemperatureDisplayProps> = ({
             icon={<Whatshot />}
              sx={{
     bgcolor: sensorData.heaterStatus ? "#ff5722" : "#00E100", // orange for ON, green for OFF
-    color: "#fff"
+    color: "#1a0909ff"
   }}
           />
         </Box>
