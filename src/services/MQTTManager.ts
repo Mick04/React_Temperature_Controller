@@ -167,7 +167,7 @@ class MQTTManager {
       if (topic.includes("/temperature/")) {
         const sensorType = topic.split("/").pop();
         const temperature = parseFloat(message);
-        console.log("🔥🔥🔥🔥🔥🔥🔥🔥 MQTT temperature update:"); // <-- Add this line
+        console.log("☃️☃️☃️☃️☃️☃️ MQTT temperature update:"); // <-- Add this line
 
         if (!isNaN(temperature) && sensorType) {
           this.callbacks.onTemperatureUpdate?.(sensorType, temperature);
