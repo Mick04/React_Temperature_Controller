@@ -142,7 +142,7 @@ class MQTTManager {
       "esp32/sensors/temperature/red",
       "esp32/sensors/temperature/blue",
       "esp32/sensors/temperature/green",
-      "esp32/system/heaterStatus",
+      "esp32/system/heater",
       "esp32/system/status",
       "esp32/system/wifi_rssi", // Changed from rssi to wifi_rssi to match ESP32
       "esp32/system/uptime",
@@ -172,7 +172,7 @@ class MQTTManager {
         if (!isNaN(temperature) && sensorType) {
           this.callbacks.onTemperatureUpdate?.(sensorType, temperature);
         }
-      } else if (topic.includes("/heaterStatus")) {
+      } else if (topic.includes("/heater")) {
         const status =
           message.toLowerCase() === "true" ||
           message === "1" ||
