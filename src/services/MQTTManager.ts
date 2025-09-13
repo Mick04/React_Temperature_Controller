@@ -278,7 +278,7 @@ class MQTTManager {
     //   "esp32/control/schedule/am/enabled",
     //   schedule.amEnabled.toString()
     // // );
-     //this.publish("React/control/schedule/am/time", schedule.amScheduledTime);
+     this.publish("React/control/schedule/am/time", schedule.amScheduledTime);
     this.publish(
       "React/control/schedule/am/scheduledTime",
       schedule.amScheduledTime
