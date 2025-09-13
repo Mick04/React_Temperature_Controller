@@ -143,7 +143,7 @@ class MQTTManager {
       "esp32/sensors/temperature/blue",
       "esp32/sensors/temperature/green",
       "esp32/system/heater",
-      "esp32/system/status",
+      "esp32/system/wifi_status",
       "esp32/system/wifi_rssi", // Changed from rssi to wifi_rssi to match ESP32
       "esp32/system/uptime",
       "esp32/system/wifi",
@@ -258,70 +258,70 @@ class MQTTManager {
     // Transform React app format to ESP32 expected format
     const esp32ScheduleFormat = {
       am: {
-        enabled: schedule.amEnabled,
+        //enabled: schedule.amEnabled,
         hours: amTime.hours,
         minutes: amTime.minutes,
         temperature: schedule.amTemperature,
-        scheduledTime: schedule.amScheduledTime,
+        //scheduledTime: schedule.amScheduledTime,
       },
       pm: {
-        enabled: schedule.pmEnabled,
+        //enabled: schedule.pmEnabled,
         hours: pmTime.hours,
         minutes: pmTime.minutes,
         temperature: schedule.pmTemperature,
-        scheduledTime: schedule.pmScheduledTime,
+        //scheduledTime: schedule.pmScheduledTime,
       },
     };
 
-    console.log("📤 Publishing ESP32 schedule format:", esp32ScheduleFormat);
+    // console.log("📤 Publishing ESP32 schedule format:", esp32ScheduleFormat);
 
-    const success = this.publish(
-      "esp32/control/schedule",
-      JSON.stringify(esp32ScheduleFormat)
-    );
+    // const success = this.publish(
+    //   "esp32/control/schedule",
+    //   JSON.stringify(esp32ScheduleFormat)
+    // );
 
     // Also publish individual schedule components for easier ESP32 parsing
-    this.publish(
-      "esp32/control/schedule/am/enabled",
-      schedule.amEnabled.toString()
-    );
-    this.publish("esp32/control/schedule/am/time", schedule.amScheduledTime);
-    this.publish(
-      "esp32/control/schedule/am/scheduledTime",
-      schedule.amScheduledTime
-    );
-    this.publish(
-      "esp32/control/schedule/am/temperature",
-      schedule.amTemperature.toString()
-    );
+    // this.publish(
+    //   "esp32/control/schedule/am/enabled",
+    //   schedule.amEnabled.toString()
+    // // );
+    // this.publish("React/control/schedule/am/time", schedule.amScheduledTime);
+    // this.publish(
+    //   "React/control/schedule/am/scheduledTime",
+    //   schedule.amScheduledTime
+    // );
+    // this.publish(
+    //   "React/control/schedule/am/temperature",
+    //   schedule.amTemperature.toString()
+    // );
 
+            // this.publish(
+            //   "esp32/control/schedule/pm/enabled",
+            //   schedule.pmEnabled.toString()
+            // );
+    const success = this.publish("React/control/schedule/pm/time", schedule.pmScheduledTime);
+    // this.publish(
+    //   "React/control/schedule/pm/scheduledTime",
+    //   schedule.pmScheduledTime
+    // );
     this.publish(
-      "esp32/control/schedule/pm/enabled",
-      schedule.pmEnabled.toString()
-    );
-    this.publish("esp32/control/schedule/pm/time", schedule.pmScheduledTime);
-    this.publish(
-      "esp32/control/schedule/pm/scheduledTime",
-      schedule.pmScheduledTime
-    );
-    this.publish(
-      "esp32/control/schedule/pm/temperature",
+      "React/control/schedule/pm/temperature",
       schedule.pmTemperature.toString()
     );
 
-    // Set control mode to auto when schedule is enabled
-    const scheduleEnabled = schedule.amEnabled || schedule.pmEnabled;
-    if (scheduleEnabled) {
-      this.publish("esp32/control/mode", "auto");
-      console.log("📤 Set control mode to 'auto' because schedule is enabled");
-    }
+    // // Set control mode to auto when schedule is enabled
+    // const scheduleEnabled = schedule.amEnabled || schedule.pmEnabled;
+    // if (scheduleEnabled) {
+    //   this.publish("esp32/control/mode", "auto");
+    //   console.log("📤 Set control mode to 'auto' because schedule is enabled");
+    // }
 
     return success;
   }
 
-  setScheduleEnabled(enabled: boolean): boolean {
-    return this.publish("esp32/control/scheduleEnabled", enabled.toString());
-  }
+  // setScheduleEnabled(enabled: boolean): boolean {
+  //   return this.publish("esp32/control/scheduleEnabled", enabled.toString());
+  // }
 
   disconnect() {
     if (this.client) {
