@@ -278,15 +278,15 @@ class MQTTManager {
     //   "esp32/control/schedule/am/enabled",
     //   schedule.amEnabled.toString()
     // // );
-    // this.publish("React/control/schedule/am/time", schedule.amScheduledTime);
-    // this.publish(
-    //   "React/control/schedule/am/scheduledTime",
-    //   schedule.amScheduledTime
-    // );
-    // this.publish(
-    //   "React/control/schedule/am/temperature",
-    //   schedule.amTemperature.toString()
-    // );
+     //this.publish("React/control/schedule/am/time", schedule.amScheduledTime);
+    this.publish(
+      "React/control/schedule/am/scheduledTime",
+      schedule.amScheduledTime
+    );
+    this.publish(
+      "React/control/schedule/am/temperature",
+      schedule.amTemperature.toString()
+    );
 
     // this.publish(
     //   "esp32/control/schedule/pm/enabled",
@@ -304,6 +304,7 @@ class MQTTManager {
       "React/control/schedule/pm/temperature",
       schedule.pmTemperature.toString()
     );
+    
 
     // // Set control mode to auto when schedule is enabled
     // const scheduleEnabled = schedule.amEnabled || schedule.pmEnabled;
