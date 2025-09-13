@@ -256,22 +256,22 @@ class MQTTManager {
     const pmTime = parseTime(schedule.pmScheduledTime);
 
     // Transform React app format to ESP32 expected format
-    const esp32ScheduleFormat = {
-      am: {
-        //enabled: schedule.amEnabled,
-        hours: amTime.hours,
-        minutes: amTime.minutes,
-        temperature: schedule.amTemperature,
-        //scheduledTime: schedule.amScheduledTime,
-      },
-      pm: {
-        //enabled: schedule.pmEnabled,
-        hours: pmTime.hours,
-        minutes: pmTime.minutes,
-        temperature: schedule.pmTemperature,
-        //scheduledTime: schedule.pmScheduledTime,
-      },
-    };
+    // const esp32ScheduleFormat = {
+    //   am: {
+    //     //enabled: schedule.amEnabled,
+    //     hours: amTime.hours,
+    //     minutes: amTime.minutes,
+    //     temperature: schedule.amTemperature,
+    //     //scheduledTime: schedule.amScheduledTime,
+    //   },
+    //   pm: {
+    //     //enabled: schedule.pmEnabled,
+    //     hours: pmTime.hours,
+    //     minutes: pmTime.minutes,
+    //     temperature: schedule.pmTemperature,
+    //     //scheduledTime: schedule.pmScheduledTime,
+    //   },
+    // };
 
     // console.log("📤 Publishing ESP32 schedule format:", esp32ScheduleFormat);
 
