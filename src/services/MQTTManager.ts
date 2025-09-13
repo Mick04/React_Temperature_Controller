@@ -246,14 +246,7 @@ class MQTTManager {
 
   // Schedule control functions
   publishSchedule(schedule: ScheduleSettings): boolean {
-    // Parse time strings to get hours and minutes for ESP32 compatibility
-    const parseTime = (timeString: string) => {
-      const [hours, minutes] = timeString.split(":").map(Number);
-      return { hours, minutes };
-    };
-
-    const amTime = parseTime(schedule.amScheduledTime);
-    const pmTime = parseTime(schedule.pmScheduledTime);
+    // ...existing code...
 
     // Transform React app format to ESP32 expected format
     // const esp32ScheduleFormat = {
@@ -295,11 +288,14 @@ class MQTTManager {
     //   schedule.amTemperature.toString()
     // );
 
-            // this.publish(
-            //   "esp32/control/schedule/pm/enabled",
-            //   schedule.pmEnabled.toString()
-            // );
-    const success = this.publish("React/control/schedule/pm/time", schedule.pmScheduledTime);
+    // this.publish(
+    //   "esp32/control/schedule/pm/enabled",
+    //   schedule.pmEnabled.toString()
+    // );
+    const success = this.publish(
+      "React/control/schedule/pm/time",
+      schedule.pmScheduledTime
+    );
     // this.publish(
     //   "React/control/schedule/pm/scheduledTime",
     //   schedule.pmScheduledTime
