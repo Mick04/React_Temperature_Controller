@@ -246,6 +246,24 @@ class MQTTManager {
 
   // Schedule control functions
   publishSchedule(schedule: ScheduleSettings): boolean {
+    // Extract hours and minutes from AM/PM scheduled times
+    const parseTime = (timeString: string) => {
+      const [hours, minutes] = timeString.split(":").map(Number);
+      return { hours, minutes };
+    };
+
+    const { hours: amHour, minutes: amMinute } = parseTime(
+      schedule.amScheduledTime
+    );
+    const { hours: pmHour, minutes: pmMinute } = parseTime(
+      schedule.pmScheduledTime
+    );
+
+    // Publish extracted values to MQTT topics
+    this.publish("React/control/schedule/am/hour", amHour.toString());
+    this.publish("React/control/schedule/am/minute", amMinute.toString());
+    this.publish("React/control/schedule/pm/hour", pmHour.toString());
+    this.publish("React/control/schedule/pm/minute", pmMinute.toString());
     // ...existing code...
 
     // Transform React app format to ESP32 expected format
@@ -277,34 +295,37 @@ class MQTTManager {
     // this.publish(
     //   "esp32/control/schedule/am/enabled",
     //   schedule.amEnabled.toString()
-    // // );
-     this.publish("React/control/schedule/am/time", schedule.amScheduledTime);
-    this.publish(
-      "React/control/schedule/am/scheduledTime",
-      schedule.amScheduledTime
-    );
+    // // // );
+    // this.publish("React/control/schedule/am/time", schedule.amScheduledTime);
+    // this.publish(
+    //   "React/control/schedule/am/scheduledTime",
+    //   schedule.amScheduledTime
+    // );
+
+
     this.publish(
       "React/control/schedule/am/temperature",
       schedule.amTemperature.toString()
     );
 
-    // this.publish(
-    //   "esp32/control/schedule/pm/enabled",
-    //   schedule.pmEnabled.toString()
+    // // this.publish(
+    // //   "esp32/control/schedule/pm/enabled",
+    // //   schedule.pmEnabled.toString()
+    // // );
+    // const success = this.publish(
+    //   "React/control/schedule/pm/time",
+    //   schedule.pmScheduledTime
     // );
-    const success = this.publish(
-      "React/control/schedule/pm/time",
-      schedule.pmScheduledTime
-    );
     // this.publish(
     //   "React/control/schedule/pm/scheduledTime",
     //   schedule.pmScheduledTime
     // );
+
+
     this.publish(
       "React/control/schedule/pm/temperature",
       schedule.pmTemperature.toString()
     );
-    
 
     // // Set control mode to auto when schedule is enabled
     // const scheduleEnabled = schedule.amEnabled || schedule.pmEnabled;
@@ -313,7 +334,7 @@ class MQTTManager {
     //   console.log("📤 Set control mode to 'auto' because schedule is enabled");
     // }
 
-    return success;
+    return true;
   }
 
   // setScheduleEnabled(enabled: boolean): boolean {
