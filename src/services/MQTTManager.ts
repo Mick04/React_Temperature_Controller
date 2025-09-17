@@ -11,6 +11,7 @@ export interface MQTTConfig {
 
 export interface MQTTCallbacks {
   onTemperatureUpdate?: (sensor: string, temperature: number) => void;
+  onTargetTemperatureUpdate?: (control: string, temperature: number) => void;
   onHeaterStatusUpdate?: (status: boolean) => void;
   onSystemStatusUpdate?: (statusData: any) => void;
   onConnectionStatus?: (connected: boolean) => void;
@@ -147,6 +148,7 @@ class MQTTManager {
       "esp32/system/wifi_rssi", // Changed from rssi to wifi_rssi to match ESP32
       "esp32/system/uptime",
       "esp32/system/wifi",
+      "esp32/control/targetTemperature", // Subscribe to target temperature
     ];
 
     topics.forEach((topic) => {
@@ -167,10 +169,18 @@ class MQTTManager {
       if (topic.includes("/temperature/")) {
         const sensorType = topic.split("/").pop();
         const temperature = parseFloat(message);
-        console.log("☃️☃️☃️☃️☃️☃️ MQTT temperature update:"); // <-- Add this line
+        console.log("☃️☃️☃️☃️☃️☃️ MQTT temperature update:");
 
         if (!isNaN(temperature) && sensorType) {
           this.callbacks.onTemperatureUpdate?.(sensorType, temperature);
+        }
+      } else if (topic === "esp32/control/targetTemperature") {
+        const targetTemp = parseFloat(message);
+        if (!isNaN(targetTemp)) {
+          this.callbacks.onTargetTemperatureUpdate?.(
+            "targetTemperature",
+            targetTemp
+          );
         }
       } else if (topic.includes("/heater")) {
         const status =
@@ -207,6 +217,14 @@ class MQTTManager {
           } catch (parseError) {
             // If not JSON, treat as simple status string
             this.callbacks.onSystemStatusUpdate?.({ status: message });
+          }
+        } else if (topic === "esp32/control/targetTemperature") {
+          const targetTemp = parseFloat(message);
+          if (!isNaN(targetTemp)) {
+            this.callbacks.onTargetTemperatureUpdate?.(
+              "targetTemperature",
+              targetTemp
+            );
           }
         }
       }
@@ -246,24 +264,24 @@ class MQTTManager {
 
   // Schedule control functions
   publishSchedule(schedule: ScheduleSettings): boolean {
-    // Extract hours and minutes from AM/PM scheduled times
-    const parseTime = (timeString: string) => {
-      const [hours, minutes] = timeString.split(":").map(Number);
-      return { hours, minutes };
-    };
+    // // Extract hours and minutes from AM/PM scheduled times
+    // const parseTime = (timeString: string) => {
+    //   const [hours, minutes] = timeString.split(":").map(Number);
+    //   return { hours, minutes };
+    // };
 
-    const { hours: amHour, minutes: amMinute } = parseTime(
-      schedule.amScheduledTime
-    );
-    const { hours: pmHour, minutes: pmMinute } = parseTime(
-      schedule.pmScheduledTime
-    );
+    // const { hours: amHour, minutes: amMinute } = parseTime(
+    //   schedule.amScheduledTime
+    // );
+    // const { hours: pmHour, minutes: pmMinute } = parseTime(
+    //   schedule.pmScheduledTime
+    // );
 
     // Publish extracted values to MQTT topics
-    this.publish("React/control/schedule/am/hour", amHour.toString());
-    this.publish("React/control/schedule/am/minute", amMinute.toString());
-    this.publish("React/control/schedule/pm/hour", pmHour.toString());
-    this.publish("React/control/schedule/pm/minute", pmMinute.toString());
+    // this.publish("React/control/schedule/am/hour", amHour.toString());
+    // this.publish("React/control/schedule/am/minute", amMinute.toString());
+    // this.publish("React/control/schedule/pm/hour", pmHour.toString());
+    // this.publish("React/control/schedule/pm/minute", pmMinute.toString());
     // ...existing code...
 
     // Transform React app format to ESP32 expected format
@@ -301,7 +319,8 @@ class MQTTManager {
     //   "React/control/schedule/am/scheduledTime",
     //   schedule.amScheduledTime
     // );
-
+    this.publish("React/control/schedule/am/time", schedule.amScheduledTime);
+    this.publish("React/control/schedule/pm/time", schedule.pmScheduledTime);
 
     this.publish(
       "React/control/schedule/am/temperature",
@@ -320,7 +339,6 @@ class MQTTManager {
     //   "React/control/schedule/pm/scheduledTime",
     //   schedule.pmScheduledTime
     // );
-
 
     this.publish(
       "React/control/schedule/pm/temperature",

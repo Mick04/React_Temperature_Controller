@@ -7,7 +7,7 @@ import TemperatureDisplay from "./TemperatureDisplay";
 import SystemStatusCard from "./SystemStatusCard";
 import TemperatureChart from "./TemperatureChart";
 import FirebaseDebugger from "./FirebaseDebugger";
-import MQTTDebugger from "./MQTTDebugger";
+// ...existing code...
 import { useTemperature } from "../contexts/TemperatureContext";
 // import { generateSimpleSystemData } from "../utils/esp32Simulator"; // Disabled - uncomment to enable simulation
 
@@ -20,7 +20,7 @@ const Dashboard: React.FC = () => {
     systemStatus: mqttSystemStatus,
   } = useTemperature();
   //const [controlSettings, setControlSettings] =
-    useState<ControlSettings | null>(null);
+  useState<ControlSettings | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -99,7 +99,7 @@ const Dashboard: React.FC = () => {
       const data = snapshot.val();
       console.log("Firebase control data received:", data);
       if (data) {
-       // setControlSettings(data);
+        // setControlSettings(data);
         console.log("Control settings updated:", data);
       } else {
         console.log("No control data found at path: /control");
@@ -245,9 +245,7 @@ const Dashboard: React.FC = () => {
         </Box>
 
         {/* MQTT Debugger - for development */}
-        <Box>
-          <MQTTDebugger />
-        </Box>
+        <Box>{/* MQTTDebugger removed */}</Box>
       </Box>
     </Container>
   );

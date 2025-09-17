@@ -221,6 +221,12 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
           return updated;
         });
       },
+      onTargetTemperatureUpdate: (control, temperature) => {
+        console.log(
+          `MQTT target temperature update - ${control}: ${temperature}°C`
+        );
+        setTargetTemperature(temperature);
+      },
       onHeaterStatusUpdate: (status) => {
         console.log("MQTT heater status update:", status);
         setHeaterStatus(status);
