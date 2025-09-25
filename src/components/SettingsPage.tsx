@@ -115,6 +115,7 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
 
   const handleScheduleChange = (field: keyof ScheduleSettings, value: any) => {
     setHasUserMadeChanges(true);
+    // Only update local state for form editing, but do not persist to UI after save
     setScheduleSettings((prev) => ({
       ...prev,
       [field]: value,
@@ -195,6 +196,8 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
       console.log(`✅ Save successful to path: React/schedule`);
       setSaveStatus("success");
       setHasUserMadeChanges(false);
+
+      // Do NOT update setScheduleSettings here; let the onValue listener update all tabs
 
       // Also publish to MQTT (but don't fail if it doesn't work)
       try {
