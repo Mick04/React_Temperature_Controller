@@ -23,7 +23,7 @@ import {
   Settings,
 } from "@mui/icons-material";
 import { database, auth, signInAnonymously_Custom } from "../firebase";
-import { ref, set, get } from "firebase/database";
+import { ref, set, onValue } from "firebase/database";
 import { onAuthStateChanged, type User } from "firebase/auth";
 import { useTemperature } from "../contexts/TemperatureContext";
 import type { ScheduleSettings } from "../types";
@@ -51,10 +51,8 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
   >("idle");
   const [hasUserMadeChanges, setHasUserMadeChanges] = useState(false);
   const [errorDetails, setErrorDetails] = useState<string>("");
-  const [isInitialLoad, setIsInitialLoad] = useState(true);
   const [user, setUser] = useState<User | null>(null);
   const [isAuthenticating, setIsAuthenticating] = useState(false);
-  const [workingPath, setWorkingPath] = useState<string | null>(null);
   // REMOVED: local MQTT state - now using shared context
   const [isTesting, setIsTesting] = useState(false);
   const [testResult, setTestResult] = useState<{
@@ -91,77 +89,29 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
 
   // Load settings on mount
   useEffect(() => {
-    const loadInitialData = async () => {
-      try {
-        if (!user) {
-          console.log("⚠️ No user authenticated yet, skipping load");
-          return;
-        }
-
-        console.log("📥 Loading schedule settings...");
-
-        // Try to load from the same paths we save to, with preference for known working path
-        const possiblePaths = workingPath
-          ? [
-              workingPath,
-              `users/${user.uid}/schedule`,
-              `schedule`,
-              `data/schedule`,
-              `user-data/${user.uid}/schedule`,
-              `public/schedule`,
-            ]
-          : [
-              `users/${user.uid}/schedule`,
-              `schedule`,
-              `data/schedule`,
-              `user-data/${user.uid}/schedule`,
-              `public/schedule`,
-            ];
-
-        let loadedData = null;
-        let loadedFrom = null;
-
-        for (const path of possiblePaths) {
-          try {
-            console.log(`🔍 Trying to load from path: ${path}`);
-            const scheduleRef = ref(database, path);
-            const snapshot = await get(scheduleRef);
-
-            if (snapshot.exists()) {
-              loadedData = snapshot.val();
-              loadedFrom = path;
-              setWorkingPath(path); // Remember this path works
-              console.log(`✅ Loaded data from path: ${path}`, loadedData);
-              break;
-            } else {
-              console.log(`📭 No data found at path: ${path}`);
-            }
-          } catch (error: any) {
-            console.log(`❌ Failed to load from ${path}:`, error.code);
+    let unsubscribe: (() => void) | undefined;
+    if (user) {
+      const scheduleRef = ref(database, "React/schedule");
+      unsubscribe = onValue(
+        scheduleRef,
+        (snapshot: import("firebase/database").DataSnapshot) => {
+          if (snapshot.exists()) {
+            const data = snapshot.val();
+            setScheduleSettings(data);
+            setErrorDetails("✅ Loaded settings from: React/schedule");
+          } else {
+            setErrorDetails("ℹ️ No saved settings found, using defaults");
           }
+        },
+        (error: Error) => {
+          setErrorDetails(`Load error: ${error.message}`);
         }
-
-        if (loadedData && isInitialLoad) {
-          console.log("✅ Setting loaded schedule data:", loadedData);
-          setScheduleSettings(loadedData);
-          setErrorDetails(`✅ Loaded settings from: ${loadedFrom}`);
-        } else if (!loadedData) {
-          console.log("📭 No schedule data found in any path, using defaults");
-          setErrorDetails("ℹ️ No saved settings found, using defaults");
-        }
-
-        setIsInitialLoad(false);
-      } catch (error) {
-        console.error("⚠️ Failed to load settings:", error);
-        setErrorDetails(`Load error: ${error}`);
-        setIsInitialLoad(false);
-      }
-    };
-
-    if (isInitialLoad && user) {
-      loadInitialData();
+      );
     }
-  }, [isInitialLoad, user, workingPath]);
+    return () => {
+      if (unsubscribe) unsubscribe();
+    };
+  }, [user]);
 
   const handleScheduleChange = (field: keyof ScheduleSettings, value: any) => {
     setHasUserMadeChanges(true);
@@ -238,57 +188,11 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
       // Schedule settings are already in the correct format with scheduledTime
       const enhancedScheduleSettings = {
         ...scheduleSettings,
-        // No need to convert - amScheduledTime and pmScheduledTime are already strings
       };
 
-      console.log(
-        "💾 Enhanced schedule settings with scheduledTime:",
-        enhancedScheduleSettings
-      );
-
-      // Try different paths to find one with write access, with preference for known working path
-      const possiblePaths = workingPath
-        ? [
-            workingPath,
-            `users/${user?.uid}/schedule`,
-            `schedule`,
-            `data/schedule`,
-            `user-data/${user?.uid}/schedule`,
-            `public/schedule`,
-          ]
-        : [
-            `users/${user?.uid}/schedule`,
-            `schedule`,
-            `data/schedule`,
-            `user-data/${user?.uid}/schedule`,
-            `public/schedule`,
-          ];
-
-      let savedSuccessfully = false;
-      let lastError = null;
-      let savedToPath = null;
-
-      for (const path of possiblePaths) {
-        try {
-          console.log(`🔍 Trying to save to path: ${path}`);
-          const scheduleRef = ref(database, path);
-          await set(scheduleRef, enhancedScheduleSettings);
-          console.log(`✅ Save successful to path: ${path}`);
-          savedSuccessfully = true;
-          savedToPath = path;
-          setWorkingPath(path); // Remember this path works for future operations
-          break;
-        } catch (error: any) {
-          console.log(`❌ Failed to save to ${path}:`, error.code);
-          lastError = error;
-        }
-      }
-
-      if (!savedSuccessfully) {
-        throw lastError || new Error("All save paths failed");
-      }
-
-      console.log("✅ Save successful!");
+      const scheduleRef = ref(database, "React/schedule");
+      await set(scheduleRef, enhancedScheduleSettings);
+      console.log(`✅ Save successful to path: React/schedule`);
       setSaveStatus("success");
       setHasUserMadeChanges(false);
 
@@ -297,17 +201,17 @@ const SettingsPage: React.FC<SettingsPageProps> = () => {
         const mqttSuccess = await publishScheduleToMQTT(scheduleSettings);
         if (mqttSuccess) {
           setErrorDetails(
-            `✅ Settings saved to Firebase (${savedToPath}) and published to MQTT`
+            `✅ Settings saved to Firebase (React/schedule) and published to MQTT`
           );
         } else {
           setErrorDetails(
-            `✅ Settings saved to Firebase (${savedToPath}), but MQTT publish failed`
+            `✅ Settings saved to Firebase (React/schedule), but MQTT publish failed`
           );
         }
       } catch (mqttError) {
         console.warn("⚠️ MQTT publish error (continuing anyway):", mqttError);
         setErrorDetails(
-          `✅ Settings saved to Firebase (${savedToPath}), but MQTT publish failed`
+          `✅ Settings saved to Firebase (React/schedule), but MQTT publish failed`
         );
       }
 
