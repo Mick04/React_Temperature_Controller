@@ -14,10 +14,10 @@ import { useTemperature } from "../contexts/TemperatureContext";
 const Dashboard: React.FC = () => {
   const {
     currentTemperatures,
-    mqttConnected,
+    //mqttConnected,
     heaterStatus,
     targetTemperature,
-    systemStatus: mqttSystemStatus,
+    //systemStatus: mqttSystemStatus,
   } = useTemperature();
   //const [controlSettings, setControlSettings] =
   useState<ControlSettings | null>(null);
