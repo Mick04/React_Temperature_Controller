@@ -24,34 +24,61 @@ const Dashboard: React.FC = () => {
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // Firebase status polling interval (ms)
+  const STATUS_POLL_INTERVAL = 2 * 60 * 1000; // 2 minutes
+
   useEffect(() => {
-    // Initialize Firebase connection
+    let pollInterval: NodeJS.Timeout | null = null;
+    let isMounted = true;
+
+    // Helper to fetch ESP32 status from Firebase (correct path)
+    const fetchEsp32Status = async () => {
+      try {
+        const statusRef = ref(database, "ESP32/control/wifi");
+        const snapshot = await import("firebase/database").then((m) =>
+          m.get(statusRef)
+        );
+        if (snapshot.exists()) {
+          const data = snapshot.val();
+          console.log("[POLL] ESP32/control/wifi from Firebase:", data);
+          if (isMounted && data) {
+            setSystemStatus({
+              wifi: data.wifi || "Unknown",
+              rssi:
+                typeof data.rssi === "number" && !isNaN(data.rssi)
+                  ? data.rssi
+                  : -100,
+              status: data.status || "offline",
+              last_update:
+                data.lastUpdated !== undefined
+                  ? Number(data.lastUpdated)
+                  : Date.now() / 1000,
+              firebase: data.firebase_status || "FB_ERROR",
+              mqtt: data.mqtt_status || "MQTT_STATE_DISCONNECTED",
+              heaterStatus:
+                typeof data.heaterStatus === "boolean"
+                  ? data.heaterStatus
+                  : false,
+              uptime: typeof data.uptime === "number" ? data.uptime : 0,
+            });
+          }
+        }
+      } catch (err) {
+        console.error("[POLL] Failed to fetch ESP32/control/wifi:", err);
+      }
+    };
+
+    // Authenticate and set up listeners
     const initializeFirebase = async () => {
       try {
         await signInAnonymously_Custom();
         console.log("Firebase authenticated successfully");
-
-        // Set up real-time listeners
         setupRealtimeListeners();
-
-        // ESP32 Simulator - DISABLED
-        // Uncomment the code below to enable simulation when ESP32 is not connected
-        /*
-        const simulateESP32Data = () => {
-          const systemData = generateSimpleSystemData();
-          console.log("Setting simulated ESP32 system data:", systemData);
-          set(ref(database, "system"), systemData);
-        };
-
-        // Set initial data
-        simulateESP32Data();
-
-        // Update every 30 seconds to simulate real ESP32 behavior
-        const intervalId = setInterval(simulateESP32Data, 30000);
-
-        // Cleanup interval on unmount
-        return () => clearInterval(intervalId);
-        */
+        // Start polling
+        await fetchEsp32Status();
+        pollInterval = setInterval(fetchEsp32Status, STATUS_POLL_INTERVAL);
+        // Add onfocus event to fetch status when dashboard regains focus
+        window.addEventListener("focus", fetchEsp32Status);
       } catch (error) {
         console.error("Firebase authentication failed:", error);
       } finally {
@@ -60,35 +87,17 @@ const Dashboard: React.FC = () => {
     };
 
     initializeFirebase();
-  }, []); // Empty dependency array to run only once
+
+    return () => {
+      isMounted = false;
+      if (pollInterval) clearInterval(pollInterval);
+      window.removeEventListener("focus", fetchEsp32Status);
+    };
+  }, []);
 
   // Update system status when MQTT data changes
-  useEffect(() => {
-    if (systemStatus) {
-      console.log(
-        "🔄 Dashboard useEffect triggered - Current dashboard RSSI:",
-        systemStatus.rssi,
-        "dBm, New MQTT RSSI:",
-        mqttSystemStatus.rssi,
-        "dBm"
-      );
-      setSystemStatus((prev) =>
-        prev
-          ? {
-              ...prev,
-              rssi: mqttSystemStatus.rssi,
-              uptime:
-                mqttSystemStatus.uptime > 0
-                  ? mqttSystemStatus.uptime
-                  : prev.uptime,
-              mqtt: mqttConnected
-                ? "MQTT_STATE_CONNECTED"
-                : "MQTT_STATE_DISCONNECTED",
-            }
-          : null
-      );
-    }
-  }, [mqttSystemStatus.rssi, mqttSystemStatus.uptime, mqttConnected]); // Removed systemStatus to prevent infinite loop
+
+  // (Removed broken setSystemStatus block from MQTT useEffect)
 
   const setupRealtimeListeners = () => {
     // Only listen to control settings and system status, not sensor data (that comes from MQTT)
@@ -106,87 +115,21 @@ const Dashboard: React.FC = () => {
       }
     });
 
-    // Listen to system status
-    const systemRef = ref(database, "system");
-    onValue(systemRef, (snapshot) => {
-      const data = snapshot.val();
-      console.log("🔥 Firebase system data received:", data);
-      console.log(
-        "🔥 Raw Firebase system data structure:",
-        JSON.stringify(data, null, 2)
-      );
-
-      if (data) {
-        console.log("data.status:", data.status);
-        console.log("data.wifi:", data.wifi);
-        console.log("data.firebase:", data.firebase);
-        console.log("data.mqtt:", data.mqtt);
-
-        // Transform ESP32 system data to match our interface
-        const transformedSystemStatus: SystemStatus = {
-          // Use actual status fields if they exist, otherwise fallback based on general status
-          wifi:
-            data.wifi ||
-            data.wifi_status ||
-            (data.status === "online" ? "CONNECTED" : "ERROR"),
-          firebase:
-            data.firebase ||
-            data.firebase_status ||
-            (data.status === "online" ? "FB_CONNECTED" : "FB_ERROR"),
-          mqtt:
-            data.mqtt ||
-            data.mqtt_status ||
-            (mqttConnected
-              ? "MQTT_STATE_CONNECTED"
-              : "MQTT_STATE_DISCONNECTED"),
-          heaterStatus:
-            data.heaterStatus !== undefined ? data.heaterStatus : heaterStatus,
-          uptime:
-            mqttSystemStatus.uptime > 0
-              ? mqttSystemStatus.uptime
-              : data.uptime !== undefined && data.uptime !== null
-              ? data.uptime
-              : 0,
-          rssi:
-            mqttSystemStatus.rssi !== undefined && !isNaN(mqttSystemStatus.rssi)
-              ? mqttSystemStatus.rssi
-              : data.rssi !== undefined
-              ? data.rssi
-              : -100,
-          status: data.status || "offline",
-          last_update: data.last_update || data.lastUpdate || Date.now() / 1000,
-        };
-
-        setSystemStatus(transformedSystemStatus);
-        console.log(
-          "System status updated with MQTT RSSI:",
-          mqttSystemStatus.rssi,
-          "dBm"
-        );
-      } else {
-        console.log("No system data found at path: /system");
-
-        // Set a default system status when no data is available
-        const defaultSystemStatus: SystemStatus = {
-          wifi: "ERROR",
-          firebase: "FB_ERROR",
-          mqtt: mqttConnected
-            ? "MQTT_STATE_CONNECTED"
-            : "MQTT_STATE_DISCONNECTED",
-          heaterStatus: heaterStatus,
-          uptime: mqttSystemStatus.uptime || 0,
-          rssi: mqttSystemStatus.rssi, // Use MQTT RSSI
-          status: "offline",
-          last_update: Date.now() / 1000,
-        };
-        setSystemStatus(defaultSystemStatus);
-        console.log(
-          "Set fallback system status with MQTT RSSI:",
-          mqttSystemStatus.rssi,
-          "dBm"
-        );
-      }
-    });
+    // Listen to system status (DISABLED: see polling logic for status updates)
+    // const systemRef = ref(database, "system");
+    // onValue(systemRef, (snapshot) => {
+    //   const data = snapshot.val();
+    //   console.log("🔥 Firebase system data received:", data);
+    //   console.log(
+    //     "🔥 Raw Firebase system data structure:",
+    //     JSON.stringify(data, null, 2)
+    //   );
+    //   if (data) {
+    //     ...status extraction logic...
+    //   } else {
+    //     ...fallback logic...
+    //   }
+    // });
   };
 
   if (loading) {
