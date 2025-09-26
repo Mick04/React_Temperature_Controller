@@ -163,7 +163,11 @@ const SystemStatusCard: React.FC<SystemStatusCardProps> = ({
 
       <Box sx={{ mb: 2 }}>
         <Typography variant="body2" color="text.secondary" gutterBottom>
-          Signal Strength: {systemStatus.rssi || "Unknown"} dBm
+          Signal Strength:{" "}
+          {typeof systemStatus.rssi === "number" && !isNaN(systemStatus.rssi)
+            ? systemStatus.rssi
+            : "Unknown"}{" "}
+          dBm
         </Typography>
         <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
           <LinearProgress

@@ -125,12 +125,17 @@ const Dashboard: React.FC = () => {
         // Transform ESP32 system data to match our interface
         const transformedSystemStatus: SystemStatus = {
           // Use actual status fields if they exist, otherwise fallback based on general status
-          wifi: data.wifi || (data.status === "online" ? "CONNECTED" : "ERROR"),
+          wifi:
+            data.wifi ||
+            data.wifi_status ||
+            (data.status === "online" ? "CONNECTED" : "ERROR"),
           firebase:
             data.firebase ||
+            data.firebase_status ||
             (data.status === "online" ? "FB_CONNECTED" : "FB_ERROR"),
           mqtt:
             data.mqtt ||
+            data.mqtt_status ||
             (mqttConnected
               ? "MQTT_STATE_CONNECTED"
               : "MQTT_STATE_DISCONNECTED"),
@@ -142,7 +147,12 @@ const Dashboard: React.FC = () => {
               : data.uptime !== undefined && data.uptime !== null
               ? data.uptime
               : 0,
-          rssi: mqttSystemStatus.rssi, // Always use MQTT RSSI
+          rssi:
+            mqttSystemStatus.rssi !== undefined && !isNaN(mqttSystemStatus.rssi)
+              ? mqttSystemStatus.rssi
+              : data.rssi !== undefined
+              ? data.rssi
+              : -100,
           status: data.status || "offline",
           last_update: data.last_update || data.lastUpdate || Date.now() / 1000,
         };

@@ -82,11 +82,11 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
 
       // Try multiple possible paths where temperature data might be stored
       const possiblePaths = [
-        "/", // Root level
+        "ESP32/control/sensors", // <-- This should be first
+        "ESP32", // ESP32 root
+        "control", // Control path
         "sensors", // Sensors path
-        "data", // Data path
-        "temperature", // Temperature path
-        "system", // System path
+        "/", // Root level (optional, can be last)
       ];
 
       for (const path of possiblePaths) {
@@ -140,23 +140,28 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
                 );
               }
             }
+            // Format 4: tempRed/tempBlue/tempGreen as top-level fields
+            else if (data.tempRed !== undefined) {
+              red = Number(data.tempRed);
+              blue = Number(data.tempBlue) || 0;
+              green = Number(data.tempGreen) || 0;
+              found = true;
+              console.log(`✅ Found tempRed/tempBlue/tempGreen at ${path}`);
+            }
 
             if (found) {
               const average = (red + blue + green) / 3;
-
-              console.log(
-                `🌡️ Setting temperatures - Red: ${red}°C, Blue: ${blue}°C, Green: ${green}°C, Average: ${average.toFixed(
-                  1
-                )}°C`
-              );
-
               setCurrentTemperatures({
                 red,
                 blue,
                 green,
                 average,
               });
-
+              console.log(
+                `🌡️ Setting temperatures - Red: ${red}°C, Blue: ${blue}°C, Green: ${green}°C, Average: ${average.toFixed(
+                  1
+                )}°C`
+              );
               return; // Success, exit the loop
             }
           } else {
