@@ -14,71 +14,23 @@ import { useTemperature } from "../contexts/TemperatureContext";
 const Dashboard: React.FC = () => {
   const {
     currentTemperatures,
-    //mqttConnected,
+    mqttConnected,
     heaterStatus,
     targetTemperature,
-    //systemStatus: mqttSystemStatus,
+    systemStatus: mqttSystemStatus,
   } = useTemperature();
   //const [controlSettings, setControlSettings] =
   useState<ControlSettings | null>(null);
   const [systemStatus, setSystemStatus] = useState<SystemStatus | null>(null);
   const [loading, setLoading] = useState(true);
 
-  // Firebase status polling interval (ms)
-  const STATUS_POLL_INTERVAL = 2 * 60 * 1000; // 2 minutes
-
   useEffect(() => {
-    let pollInterval: NodeJS.Timeout | null = null;
-    let isMounted = true;
-
-    // Helper to fetch ESP32 status from Firebase (correct path)
-    const fetchEsp32Status = async () => {
-      try {
-        const statusRef = ref(database, "ESP32/control/wifi");
-        const snapshot = await import("firebase/database").then((m) =>
-          m.get(statusRef)
-        );
-        if (snapshot.exists()) {
-          const data = snapshot.val();
-          console.log("[POLL] ESP32/control/wifi from Firebase:", data);
-          if (isMounted && data) {
-            setSystemStatus({
-              wifi: data.wifi || "Unknown",
-              rssi:
-                typeof data.rssi === "number" && !isNaN(data.rssi)
-                  ? data.rssi
-                  : -100,
-              status: data.status || "offline",
-              last_update:
-                data.lastUpdated !== undefined
-                  ? Number(data.lastUpdated)
-                  : Date.now() / 1000,
-              firebase: data.firebase_status || "FB_ERROR",
-              mqtt: data.mqtt_status || "MQTT_STATE_DISCONNECTED",
-              heaterStatus:
-                typeof data.heaterStatus === "boolean"
-                  ? data.heaterStatus
-                  : false,
-              uptime: typeof data.uptime === "number" ? data.uptime : 0,
-            });
-          }
-        }
-      } catch (err) {
-        console.error("[POLL] Failed to fetch ESP32/control/wifi:", err);
-      }
-    };
-
-    // Authenticate and set up listeners
+    // Simple Firebase authentication for temperature data only
     const initializeFirebase = async () => {
       try {
         await signInAnonymously_Custom();
-        console.log("Firebase authenticated successfully");
+        console.log("Firebase authenticated successfully for temperature data");
         setupRealtimeListeners();
-        // Start polling
-        await fetchEsp32Status();
-        pollInterval = setInterval(fetchEsp32Status, STATUS_POLL_INTERVAL);
-        // Add onfocus event to fetch status when dashboard regains focus
-        window.addEventListener("focus", fetchEsp32Status);
       } catch (error) {
         console.error("Firebase authentication failed:", error);
       } finally {
@@ -87,17 +39,48 @@ const Dashboard: React.FC = () => {
     };
 
     initializeFirebase();
-
-    return () => {
-      isMounted = false;
-      if (pollInterval) clearInterval(pollInterval);
-      window.removeEventListener("focus", fetchEsp32Status);
-    };
   }, []);
 
-  // Update system status when MQTT data changes
+  // Use MQTT system status directly (no Firebase polling/merging)
+  useEffect(() => {
+    if (mqttSystemStatus) {
+      console.log(`� Using MQTT-only system status:`, mqttSystemStatus);
 
-  // (Removed broken setSystemStatus block from MQTT useEffect)
+      // Smart mapping from MQTT to SystemStatus format
+      const systemStatus: SystemStatus = {
+        // If status is explicitly "offline" (from Last Will), WiFi should be ERROR
+        wifi:
+          mqttSystemStatus.status?.toLowerCase() === "offline"
+            ? "ERROR"
+            : mqttSystemStatus.rssi && mqttSystemStatus.rssi > -100
+            ? "CONNECTED"
+            : mqttSystemStatus.wifi?.toLowerCase().includes("connected")
+            ? "CONNECTED"
+            : mqttSystemStatus.wifi?.toLowerCase().includes("connecting")
+            ? "CONNECTING"
+            : "ERROR",
+        // If ESP32 is offline, Firebase connection from React app doesn't matter for ESP32 status
+        firebase:
+          mqttSystemStatus.status?.toLowerCase() === "offline"
+            ? "FB_ERROR"
+            : (mqttSystemStatus.firebase as any) || "FB_CONNECTED",
+        mqtt: mqttConnected
+          ? "MQTT_STATE_CONNECTED"
+          : "MQTT_STATE_DISCONNECTED",
+        heaterStatus: heaterStatus,
+        uptime: mqttSystemStatus.uptime || 0,
+        rssi: mqttSystemStatus.rssi || -100,
+        // RESPECT the Last Will status - if it says offline, it's offline!
+        status:
+          mqttSystemStatus.status?.toLowerCase() === "offline"
+            ? "offline"
+            : "online",
+        last_update: mqttSystemStatus.lastUpdate || Date.now() / 1000,
+      };
+      console.log("✅ Final MQTT-only system status:", systemStatus);
+      setSystemStatus(systemStatus);
+    }
+  }, [mqttSystemStatus, mqttConnected, heaterStatus]);
 
   const setupRealtimeListeners = () => {
     // Only listen to control settings and system status, not sensor data (that comes from MQTT)

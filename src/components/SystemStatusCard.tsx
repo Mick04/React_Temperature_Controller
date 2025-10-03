@@ -70,9 +70,13 @@ const SystemStatusCard: React.FC<SystemStatusCardProps> = ({
   };
 
   const getStatusColor = (
-    status: string | undefined
+    status: string | undefined,
+    systemOffline?: boolean
   ): "success" | "warning" | "error" => {
     if (!status) return "error";
+
+    // If system is offline, show error color regardless of individual status
+    if (systemOffline) return "error";
 
     if (status.includes("CONNECTED") || status.includes("online"))
       return "success";
@@ -113,11 +117,18 @@ const SystemStatusCard: React.FC<SystemStatusCardProps> = ({
         <Box sx={{ display: "flex", alignItems: "center", mb: 1 }}>
           {getConnectionIcon("wifi", systemStatus.wifi === "CONNECTED")}
           <Typography variant="body2" sx={{ ml: 1, mr: 2 }}>
-            WiFi:
+            ESP32 WiFi:
           </Typography>
           <Chip
-            label={systemStatus.wifi}
-            color={getStatusColor(systemStatus.wifi)}
+            label={
+              systemStatus.wifi === "ERROR" && systemStatus.status === "offline"
+                ? "OFFLINE"
+                : systemStatus.wifi
+            }
+            color={getStatusColor(
+              systemStatus.wifi,
+              systemStatus.status === "offline"
+            )}
             size="small"
           />
         </Box>
@@ -128,15 +139,20 @@ const SystemStatusCard: React.FC<SystemStatusCardProps> = ({
             systemStatus.firebase === "FB_CONNECTED"
           )}
           <Typography variant="body2" sx={{ ml: 1, mr: 2 }}>
-            Firebase:
+            ESP32 Firebase:
           </Typography>
           <Chip
             label={
-              systemStatus.firebase
+              systemStatus.status === "offline"
+                ? "OFFLINE"
+                : systemStatus.firebase
                 ? systemStatus.firebase.replace("FB_", "")
                 : "UNKNOWN"
             }
-            color={getStatusColor(systemStatus.firebase)}
+            color={getStatusColor(
+              systemStatus.firebase,
+              systemStatus.status === "offline"
+            )}
             size="small"
           />
         </Box>
@@ -147,7 +163,7 @@ const SystemStatusCard: React.FC<SystemStatusCardProps> = ({
             systemStatus.mqtt === "MQTT_STATE_CONNECTED"
           )}
           <Typography variant="body2" sx={{ ml: 1, mr: 2 }}>
-            MQTT:
+            React MQTT:
           </Typography>
           <Chip
             label={

@@ -28,7 +28,11 @@ interface TemperatureContextType {
     uptime: number;
     wifi: string;
     lastUpdate: number;
+    status?: string;
+    firebase?: string;
+    mqtt?: string;
   };
+  lastTemperatureUpdate: number;
   // MQTT functions
   publishSchedule: (schedule: any) => boolean;
   testMqttConnection: () => Promise<{
@@ -67,7 +71,11 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
     uptime: 0,
     wifi: "Unknown",
     lastUpdate: 0,
+    status: "offline",
+    firebase: "FB_CONNECTING",
+    mqtt: "MQTT_STATE_DISCONNECTED",
   });
+  const [lastTemperatureUpdate, setLastTemperatureUpdate] = useState<number>(0);
 
   // Store MQTT manager reference for sharing
   const mqttManagerRef = useRef<MQTTManager | null>(null);
@@ -191,9 +199,28 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
       onConnectionStatus: (connected) => {
         console.log("MQTT connection status:", connected);
         setMqttConnected(connected);
+
+        // Update system status with MQTT connection status
+        setSystemStatus((prev) => ({
+          ...prev,
+          mqtt: connected ? "MQTT_STATE_CONNECTED" : "MQTT_STATE_DISCONNECTED",
+          // If MQTT just connected, assume ESP32 is online until proven otherwise
+          status: connected ? "online" : prev.status,
+        }));
       },
       onTemperatureUpdate: (sensor, temperature) => {
         console.log(`MQTT temperature update - ${sensor}: ${temperature}°C`);
+
+        // Update timestamp when we receive temperature data
+        setLastTemperatureUpdate(Date.now() / 1000);
+
+        // If we're receiving temperature data, ESP32 is definitely online and WiFi is connected
+        setSystemStatus((prev) => ({
+          ...prev,
+          status: "online",
+          wifi: "connected", // ESP32 must have WiFi to send this data
+          lastUpdate: Date.now() / 1000,
+        }));
 
         setCurrentTemperatures((prev) => {
           const updated = {
@@ -246,6 +273,10 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
             ...prev,
             ...statusData,
             lastUpdate: Date.now() / 1000,
+            // If we're receiving system status updates (like RSSI), ESP32 is online
+            status: statusData.status || "online",
+            wifi:
+              statusData.wifi || (statusData.rssi ? "connected" : prev.wifi),
           };
           console.log("📡 Setting new systemStatus RSSI:", updated.rssi, "dBm");
           return updated;
@@ -262,6 +293,13 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
     const unsubscribeTargetTemp = onValue(targetTempRef, (snapshot) => {
       const data = snapshot.val();
       console.log("🎯 Firebase target temperature update:", data);
+
+      // Update Firebase connection status - if we can read data, Firebase is connected
+      setSystemStatus((prev) => ({
+        ...prev,
+        firebase: "FB_CONNECTED",
+      }));
+
       if (data !== null && data !== undefined && typeof data === "number") {
         console.log(
           `🎯 Setting target temperature to: ${data}°C (was: ${targetTemperature}°C)`
@@ -322,6 +360,7 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
     heaterStatus,
     targetTemperature,
     systemStatus,
+    lastTemperatureUpdate,
     publishSchedule,
     testMqttConnection,
   };

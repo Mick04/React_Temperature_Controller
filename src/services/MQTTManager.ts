@@ -149,6 +149,7 @@ class MQTTManager {
       "esp32/system/uptime",
       "esp32/system/wifi",
       "esp32/control/targetTemperature", // Subscribe to target temperature
+      "React/system/status", // Subscribe to Last Will and Testament offline messages
     ];
 
     topics.forEach((topic) => {
@@ -218,7 +219,30 @@ class MQTTManager {
             // If not JSON, treat as simple status string
             this.callbacks.onSystemStatusUpdate?.({ status: message });
           }
-        } else if (topic === "esp32/control/targetTemperature") {
+        }
+      } else if (topic === "React/system/status") {
+        // Handle Last Will and Testament offline messages
+        console.log(`🚨 ESP32 Status Update from Last Will: ${message}`);
+        if (message.toLowerCase() === "offline") {
+          console.log("🔴 ESP32 went offline (Last Will triggered)");
+          this.callbacks.onSystemStatusUpdate?.({
+            status: "offline",
+            wifi: "disconnected",
+            last_update: Date.now() / 1000,
+          });
+        } else if (message.toLowerCase() === "online") {
+          console.log("🟢 ESP32 came online");
+          this.callbacks.onSystemStatusUpdate?.({
+            status: "online",
+            last_update: Date.now() / 1000,
+          });
+        } else {
+          console.log(`🟡 ESP32 status: ${message}`);
+          this.callbacks.onSystemStatusUpdate?.({ status: message });
+        }
+      } else if (topic.includes("/system/")) {
+        // Continue with other system topics...
+        if (topic === "esp32/control/targetTemperature") {
           const targetTemp = parseFloat(message);
           if (!isNaN(targetTemp)) {
             this.callbacks.onTargetTemperatureUpdate?.(
