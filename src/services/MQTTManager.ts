@@ -204,8 +204,24 @@ class MQTTManager {
             this.callbacks.onSystemStatusUpdate?.({ rssi });
           }
         } else if (topic.includes("/uptime")) {
-          const uptime = parseInt(message);
-          if (!isNaN(uptime)) {
+          // Parse uptime - handle both seconds (number) and HH:MM:SS format
+          let uptime = 0;
+          if (message.includes(":")) {
+            // Format: "HH:MM:SS" or "MM:SS"
+            const parts = message.split(":").map((p) => parseInt(p.trim()));
+            if (parts.length === 3) {
+              // HH:MM:SS
+              uptime = parts[0] * 3600 + parts[1] * 60 + parts[2];
+            } else if (parts.length === 2) {
+              // MM:SS
+              uptime = parts[0] * 60 + parts[1];
+            }
+          } else {
+            // Assume it's already in seconds
+            uptime = parseInt(message);
+          }
+
+          if (!isNaN(uptime) && uptime >= 0) {
             this.callbacks.onSystemStatusUpdate?.({ uptime });
           }
         } else if (topic.includes("/wifi")) {
