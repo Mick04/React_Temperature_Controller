@@ -11,7 +11,7 @@ export interface TemperatureData {
 export interface SensorData {
   temperature: TemperatureData;
   current: number;
-  heaterStatus: boolean;
+  heaterStatus: boolean | "ON" | "OFF" | "ONE_ON" | "BOTH_BLOWN";
   timestamp: number;
 }
 
@@ -40,7 +40,7 @@ export interface SystemStatus {
     | "MQTT_STATE_CONNECTING"
     | "MQTT_STATE_CONNECTED"
     | "MQTT_STATE_ERROR";
-  heaterStatus: boolean;
+  heaterStatus: boolean | "ON" | "OFF" | "ONE_ON" | "BOTH_BLOWN";
   uptime: number;
   rssi: number;
   status: "online" | "offline";
@@ -55,7 +55,7 @@ export interface HistoricalDataPoint {
     green: number;
     average: number;
   };
-  heaterStatus: boolean;
+  heaterStatus: boolean | "ON" | "OFF" | "ONE_ON" | "BOTH_BLOWN";
   targetTemperature: number;
 }
 

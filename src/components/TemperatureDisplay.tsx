@@ -38,6 +38,44 @@ const TemperatureDisplay: React.FC<TemperatureDisplayProps> = ({
     return "#f44336"; // Red - more than 3°C difference
   };
 
+  const getHeaterStatusLabel = (status: boolean | string): string => {
+    if (typeof status === "string") {
+      switch (status) {
+        case "ON":
+          return "Heater ON";
+        case "OFF":
+          return "Heater OFF";
+        case "ONE_ON":
+          return "ONE Heater ON";
+        case "BOTH_BLOWN":
+          return "BOTH BLOWN";
+        default:
+          return "Unknown Status";
+      }
+    }
+    // Legacy boolean support
+    return status ? "Heater ON" : "Heater OFF";
+  };
+
+  const getHeaterStatusColor = (status: boolean | string): string => {
+    if (typeof status === "string") {
+      switch (status) {
+        case "ON":
+          return "#00E100"; // Green
+        case "OFF":
+          return "#f44336"; // Red
+        case "ONE_ON":
+          return "#d7e023ff"; // Bright Orange
+        case "BOTH_BLOWN":
+          return "#2196F3"; // Blue
+        default:
+          return "#9e9e9e"; // Gray for unknown
+      }
+    }
+    // Legacy boolean support
+    return status ? "#00E100" : "#f44336";
+  };
+
   if (!sensorData) {
     return (
       <Paper elevation={3} sx={{ p: 3, height: "100%" }}>
@@ -56,13 +94,14 @@ const TemperatureDisplay: React.FC<TemperatureDisplayProps> = ({
         <Typography variant="h6">Temperature Monitoring</Typography>
         <Box ml="auto">
           <Chip
-            label={sensorData.heaterStatus ? "Heater ON" : "Heater OFF"}
-            color={sensorData.heaterStatus ? "error" : "default"}
+            label={getHeaterStatusLabel(sensorData.heaterStatus)}
+            color="default"
             icon={<Whatshot />}
-             sx={{
-    bgcolor: sensorData.heaterStatus ? "#ff5722" : "#00E100", // orange for ON, green for OFF
-    color: "#1a0909ff"
-  }}
+            sx={{
+              bgcolor: getHeaterStatusColor(sensorData.heaterStatus),
+              color: "#ffffff",
+              fontWeight: "bold",
+            }}
           />
         </Box>
       </Box>
