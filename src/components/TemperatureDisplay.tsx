@@ -61,9 +61,9 @@ const TemperatureDisplay: React.FC<TemperatureDisplayProps> = ({
     if (typeof status === "string") {
       switch (status) {
         case "ON":
-          return "#00E100"; // Green
+          return "#f44336"; // red
         case "OFF":
-          return "#f44336"; // Red
+          return "#00E100"; // green
         case "ONE_ON":
           return "#d7e023ff"; // Bright Orange
         case "BOTH_BLOWN":
