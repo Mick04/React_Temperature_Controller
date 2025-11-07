@@ -17,6 +17,14 @@ const TemperatureDisplay: React.FC<TemperatureDisplayProps> = ({
     "🌡️ TemperatureDisplay received targetTemperature:",
     targetTemperature
   );
+  
+  // Debug logging for heater status
+  console.log(
+    "🔥 TemperatureDisplay received heaterStatus:",
+    sensorData?.heaterStatus,
+    "type:",
+    typeof sensorData?.heaterStatus
+  );
 
   const formatTemperature = (temp: number | undefined | null): string => {
     if (temp === null || temp === undefined || isNaN(temp)) {
@@ -58,22 +66,26 @@ const TemperatureDisplay: React.FC<TemperatureDisplayProps> = ({
   };
 
   const getHeaterStatusColor = (status: boolean | string): string => {
+    console.log("🔥 getHeaterStatusColor received:", status, "type:", typeof status);
+    
     if (typeof status === "string") {
       switch (status) {
         case "ON":
-          return "#f44336"; // red
+          return "#00E100"; // Green
         case "OFF":
-          return "#00E100"; // green
+          return "#f44336"; // Red
         case "ONE_ON":
-          return "#d7e023ff"; // Bright Orange
+          return "#FF8C00"; // Bright Orange
         case "BOTH_BLOWN":
           return "#2196F3"; // Blue
         default:
+          console.log("🔥 Unknown heater status string:", status);
           return "#9e9e9e"; // Gray for unknown
       }
     }
     // Legacy boolean support
-    return status ? "#00E100" : "#f44336";
+    console.log("🔥 Boolean heater status:", status);
+    return status ? "#00E100" : "#f44336"; // Green for true, Red for false
   };
 
   if (!sensorData) {

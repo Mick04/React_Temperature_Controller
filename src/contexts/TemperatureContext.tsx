@@ -21,7 +21,7 @@ interface TemperatureContextType {
   };
   historicalData: HistoricalDataPoint[];
   mqttConnected: boolean;
-  heaterStatus: boolean;
+  heaterStatus: boolean | "ON" | "OFF" | "ONE_ON" | "BOTH_BLOWN";
   targetTemperature: number;
   systemStatus: {
     rssi: number;
@@ -64,7 +64,7 @@ export const TemperatureProvider: React.FC<TemperatureProviderProps> = ({
     []
   );
   const [mqttConnected, setMqttConnected] = useState(false);
-  const [heaterStatus, setHeaterStatus] = useState(false);
+  const [heaterStatus, setHeaterStatus] = useState<boolean | "ON" | "OFF" | "ONE_ON" | "BOTH_BLOWN">("OFF");
   const [targetTemperature, setTargetTemperature] = useState(22);
   const [systemStatus, setSystemStatus] = useState({
     rssi: -100,
