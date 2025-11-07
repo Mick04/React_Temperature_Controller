@@ -23,9 +23,9 @@ import {
 } from "@mui/icons-material";
 import Dashboard from "./Dashboard";
 import SettingsPage from "./SettingsPage";
-import RedChartPage from "./RedChartPage";
-import BlueChartPage from "./BlueChartPage";
-import GreenChartPage from "./GreenChartPage";
+//import RedChartPage from "./RedChartPage";
+//import BlueChartPage from "./BlueChartPage";
+//import GreenChartPage from "./GreenChartPage";
 
 interface MainAppProps {
   onLogout?: () => void;
@@ -182,7 +182,7 @@ const MainApp: React.FC<MainAppProps> = ({ onLogout }) => {
           <Dashboard />
         </TabPanel>
 
-        <TabPanel value={currentTab} index={1}>
+        {/* <TabPanel value={currentTab} index={1}>
           <RedChartPage />
         </TabPanel>
 
@@ -192,7 +192,7 @@ const MainApp: React.FC<MainAppProps> = ({ onLogout }) => {
 
         <TabPanel value={currentTab} index={3}>
           <GreenChartPage />
-        </TabPanel>
+        </TabPanel> */}
 
         <TabPanel value={currentTab} index={4}>
           <SettingsPage onLogout={onLogout} />
