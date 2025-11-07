@@ -12,7 +12,9 @@ export interface MQTTConfig {
 export interface MQTTCallbacks {
   onTemperatureUpdate?: (sensor: string, temperature: number) => void;
   onTargetTemperatureUpdate?: (control: string, temperature: number) => void;
-  onHeaterStatusUpdate?: (status: boolean | "ON" | "OFF" | "ONE_ON" | "BOTH_BLOWN") => void;
+  onHeaterStatusUpdate?: (
+    status: boolean | "ON" | "OFF" | "ONE_ON" | "BOTH_BLOWN"
+  ) => void;
   onSystemStatusUpdate?: (statusData: any) => void;
   onConnectionStatus?: (connected: boolean) => void;
   onError?: (error: Error) => void;
@@ -186,17 +188,29 @@ class MQTTManager {
       } else if (topic.includes("/heater")) {
         // Parse heater status - support both new string format and legacy boolean
         let status: boolean | "ON" | "OFF" | "ONE_ON" | "BOTH_BLOWN";
-        
+
         const messageUpper = message.toUpperCase().trim();
-        console.log("🔥🔥🔥🔥🔥🔥🔥🔥 MQTT heater message received:", message, "->", messageUpper);
-        
-        if (messageUpper === "ON" || messageUpper === "OFF" || 
-            messageUpper === "ONE_ON" || messageUpper === "BOTH_BLOWN") {
+        console.log(
+          "🔥🔥🔥🔥🔥🔥🔥🔥 MQTT heater message received:",
+          message,
+          "->",
+          messageUpper
+        );
+
+        if (
+          messageUpper === "ON" ||
+          messageUpper === "OFF" ||
+          messageUpper === "ONE_ON" ||
+          messageUpper === "BOTH_BLOWN"
+        ) {
           // New string format
           status = messageUpper as "ON" | "OFF" | "ONE_ON" | "BOTH_BLOWN";
         } else {
           // Legacy boolean format
-          status = messageUpper === "TRUE" || messageUpper === "1" || messageUpper === "ON";
+          status =
+            messageUpper === "TRUE" ||
+            messageUpper === "1" ||
+            messageUpper === "ON";
         }
 
         console.log("🔥🔥🔥🔥🔥🔥🔥🔥 MQTT heaterStatus update:", status);

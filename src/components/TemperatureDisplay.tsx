@@ -17,7 +17,7 @@ const TemperatureDisplay: React.FC<TemperatureDisplayProps> = ({
     "🌡️ TemperatureDisplay received targetTemperature:",
     targetTemperature
   );
-  
+
   // Debug logging for heater status
   console.log(
     "🔥 TemperatureDisplay received heaterStatus:",
@@ -66,14 +66,19 @@ const TemperatureDisplay: React.FC<TemperatureDisplayProps> = ({
   };
 
   const getHeaterStatusColor = (status: boolean | string): string => {
-    console.log("🔥 getHeaterStatusColor received:", status, "type:", typeof status);
-    
+    console.log(
+      "🔥 getHeaterStatusColor received:",
+      status,
+      "type:",
+      typeof status
+    );
+
     if (typeof status === "string") {
       switch (status) {
         case "ON":
-          return "#00E100"; // Green
-        case "OFF":
           return "#f44336"; // Red
+        case "OFF":
+          return "#00E100"; // Green   
         case "ONE_ON":
           return "#FF8C00"; // Bright Orange
         case "BOTH_BLOWN":
